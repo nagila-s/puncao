@@ -1,6 +1,6 @@
 # Welcome to your Lovable project
 
-## Project info
+This project is a Braille editor built with React, TypeScript, and Tailwind CSS.
 
 **URL**: https://lovable.dev/projects/6fe20dc8-ead4-4074-a47e-d07fedc80954
 
