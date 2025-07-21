@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Paleta retrô para aplicação de braille: cinza, preto, amarelo */
+    --background: 0 0% 95%;
+    --foreground: 0 0% 10%;
+
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 98%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 0 0% 20%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 45 100% 85%;
+    --secondary-foreground: 0 0% 20%;
+
+    --muted: 0 0% 88%;
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 45 100% 70%;
+    --accent-foreground: 0 0% 20%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 82%;
+    --input: 0 0% 92%;
+    --ring: 0 0% 20%;
+
+    --radius: 0.25rem;
+
+    /* Grade braille específica */
+    --braille-grid: 0 0% 90%;
+    --braille-dot: 0 0% 75%;
+    --braille-cell-size: 20px;
+
+    /* Sidebar para ferramentas */
+    --sidebar-background: 0 0% 85%;
+    --sidebar-foreground: 0 0% 20%;
+    --sidebar-primary: 0 0% 15%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 45 100% 75%;
+    --sidebar-accent-foreground: 0 0% 20%;
+    --sidebar-border: 0 0% 75%;
+    --sidebar-ring: 45 100% 60%;
+
+    /* Área de desenho */
+    --drawing-area: 0 0% 98%;
+    --drawing-grid: 0 0% 92%;
+  }
+
+  .dark {
+    /* Tema escuro para aplicação braille - cores mais suaves */
+    --background: 0 0% 8%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 0 0% 95%;
+    --primary-foreground: 0 0% 8%;
+
+    --secondary: 45 80% 25%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 45 80% 35%;
+    --accent-foreground: 0 0% 95%;
+
+    --destructive: 0 75% 45%;
+    --destructive-foreground: 0 0% 95%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
+    --ring: 45 80% 35%;
+
+    /* Grade braille para dark mode */
+    --braille-grid: 0 0% 25%;
+    --braille-dot: 0 0% 40%;
+
+    /* Sidebar para dark mode */
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 0 0% 95%;
+    --sidebar-primary-foreground: 0 0% 8%;
+    --sidebar-accent: 45 80% 25%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 0 0% 25%;
+    --sidebar-ring: 45 80% 35%;
+
+    /* Área de desenho para dark mode */
+    --drawing-area: 0 0% 12%;
+    --drawing-grid: 0 0% 18%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
