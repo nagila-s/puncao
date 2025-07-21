@@ -1,73 +1,55 @@
-# Welcome to your Lovable project
+# Punção
 
-This project is a Braille editor built with React, TypeScript, and Tailwind CSS.
+Punção é um editor de desenho em Braille feito com **React**, **TypeScript** e **Tailwind CSS**. A aplicação permite criar e editar figuras em Braille utilizando ferramentas de desenho, seleção e texto. O projeto foi originalmente gerado pela plataforma Lovable, mas todo o código está neste repositório.
 
-**URL**: https://lovable.dev/projects/6fe20dc8-ead4-4074-a47e-d07fedc80954
+## Principais funcionalidades
 
-## How can I edit this code?
+- Grade de células Braille configurável.
+- Ferramentas de desenho (lápis, borracha, linha, retângulo, círculo, triângulo e preenchimento).
+- Inserção de texto em Braille ou em letras convencionais.
+- Seleção de células com copiar, recortar e colar.
+- Desfazer e refazer alterações.
+- Zoom e ajuste de resolução da grade.
+- Sobreposição de textos que podem ser movidos ou editados.
+- Modal de ajuda com atalhos de teclado.
 
-There are several ways of editing your application.
+## Instalação
 
-**Use Lovable**
+É necessário ter **Node.js** e **npm** instalados. Depois de clonar o repositório, instale as dependências e rode o servidor de desenvolvimento:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/6fe20dc8-ead4-4074-a47e-d07fedc80954) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Para gerar uma versão de produção:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+npm run build
+```
 
-**Use GitHub Codespaces**
+Para executar a análise de código com ESLint:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```bash
+npm run lint
+```
 
-## What technologies are used for this project?
+*(Pode ser necessário instalar as dependências de desenvolvimento para que o lint funcione corretamente.)*
 
-This project is built with:
+## Estrutura do projeto
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+O código-fonte está em `src/` e é organizado em componentes, páginas, hooks e utilitários. O arquivo `index.html` é o ponto de entrada, e o Vite é usado para empacotar a aplicação.
 
-## How can I deploy this project?
+## Status atual
 
-Simply open [Lovable](https://lovable.dev/projects/6fe20dc8-ead4-4074-a47e-d07fedc80954) and click on Share -> Publish.
+A aplicação compila sem erros aparentes e a estrutura do código está organizada. Contudo, não foi possível rodar as verificações de lint no ambiente atual por falta de dependências, conforme mostrado na saída do comando abaixo:
 
-## Can I connect a custom domain to my Lovable project?
+```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@eslint/js' imported from /workspace/puncao/eslint.config.js
+```
 
-Yes, you can!
+Fora isso, não foram encontrados bugs óbvios na revisão do código. As funcionalidades de desenho, seleção e texto parecem implementadas de forma consistente.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Licença
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Consulte o repositório para detalhes sobre licenciamento e contribuições.
