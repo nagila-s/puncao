@@ -154,7 +154,9 @@ export const DrawingArea = ({
       </div>
 
       {/* Status bar */}
-      <div className="border-t border-border px-3 py-2 bg-card">
+      {/*</div><div className="border-t border-border px-3 py-2 bg-card">*/}
+      {/*Added different div to fix footer */}
+      <div className="fixed bottom-0 left-0 w-full border-t border-border px-3 py-2 bg-card z-50">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div>
             Grade: {grid.width}×{grid.height} células
