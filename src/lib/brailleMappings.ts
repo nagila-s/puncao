@@ -44,9 +44,13 @@ export const letterToBraillePattern: Record<string, number[]> = {
   'â': [1, 6],
   'ê': [1, 2, 6],
   'ô': [1, 4, 5, 6],
+  'î': [1, 4, 6],
+  'û': [1, 5, 6],
+
 
   // LETRAS COM ACENTO GRAVE (à)
   'à': [1, 2, 4, 6], 
+  'è': [2, 3, 4, 6], 
 
   // LETRAS COM TIL (ã, õ)
   'ã': [3, 4, 5],
@@ -54,6 +58,11 @@ export const letterToBraillePattern: Record<string, number[]> = {
 
   // LETRA COM CEDILHA (ç)
   'ç': [1, 2, 3, 4, 6],
+
+    // LETRA COM trema
+  'ÿ': [2, 5, 6],               // divisão
+  'ü': [1, 2, 5, 6],            // u com trema
+  'ï': [1, 2, 4, 5, 6],            // u com trema
 
   // PONTUAÇÕES E SÍMBOLOS
   ' ': [],                   // espaço vazio
@@ -80,12 +89,9 @@ export const letterToBraillePattern: Record<string, number[]> = {
   '=': [2, 3, 5, 6],         // igual
   '^': [4],                  // circunflexo
   '~': [5],                  // til
+  '_': [4, 5, 6],            // til
+  '¬': [4, 5],                // negação lógica
  
-  // SÍMBOLOS MATEMÁTICOS ADICIONAIS
-  '÷': [2, 5, 6],               // divisão
-
-  // PLACEHOLDER PARA TODOS OS PONTOS
-  '⠿': [1, 2, 3, 4, 5, 6],  // todos os pontos (usado como placeholder)
 };
 
 // Mapeamento inverso para letras maiúsculas (precedidas pelo indicador maiúscula: [4, 6])

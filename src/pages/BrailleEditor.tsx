@@ -303,14 +303,19 @@ export const BrailleEditor = () => {
     hasClipboard: selection.hasClipboard
   });
 
-  return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="min-h-screen w-full flex flex-col bg-background">
-        {/* Header com nome do app */}
-        <div className="h-12 bg-background border-b flex items-center px-4 flex-shrink-0">
-          <SidebarTrigger className="mr-4" />
-          <h1 className="text-xl font-bold text-foreground">Punção</h1>
-        </div>
+return (
+  <SidebarProvider defaultOpen={true}>
+    <div className="min-h-screen w-full flex flex-col bg-background">
+      {/* Header com logo e título */}
+      <div className="h-12 bg-[#F0C930] border-b flex items-center px-4 flex-shrink-0">
+        {/*<SidebarTrigger className="mr-4" />*/}
+        <img
+          src="/logo-puncao.png"
+          alt="Logo Punção"
+          className="h-7 w-auto mr-2"
+        />
+        <h1 className="titulo-principal text-foreground">Punção</h1>
+      </div>
 
         {/* Layout principal */}
         <div className="flex w-full flex-1 min-h-0">

@@ -115,6 +115,14 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
-  }
+  font-family: 'Roboto', sans-serif;
+  @apply bg-background text-foreground;
+}
+}
+
+/* Estilo do título principal com fonte VT323 */
+.titulo-principal {
+  font-family: 'VT323', monospace;
+  font-size: 2rem;
+  font-weight: 400;
 }
