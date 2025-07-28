@@ -390,7 +390,7 @@ return (
           />
         )}
 
-        {/* Debug Panel - Remove this after fixing the issue 
+        {/* Debug Panel - Remove this after fixing the issue */}
         {showDebug && (
           <div className="fixed bottom-4 right-4 bg-black/80 text-white p-4 rounded-lg text-xs font-mono z-50">
             <div className="mb-2 font-bold">Debug Panel (Ctrl+D to toggle)</div>
@@ -425,7 +425,7 @@ return (
               </button>
             </div>
           </div>
-        )}*/}
+        )}
       </div>
     </SidebarProvider>
   );
