@@ -40,6 +40,7 @@ export const BrailleEditor = () => {
   const [showLetters, setShowLetters] = useState(false);
   const [editingCell, setEditingCell] = useState<BrailleCell | null>(null);
   const [lastClickTime, setLastClickTime] = useState(0);
+  const [showDebug, setShowDebug] = useState(false);
   const { toast } = useToast();
 
   // Gerenciar histórico (undo/redo)
@@ -106,6 +107,7 @@ export const BrailleEditor = () => {
       if (e.key === 'Shift') {
         console.log('Shift pressed');
         setIsShiftPressed(true);
+        // Don't prevent default for Shift alone to allow other shortcuts to work
       }
     };
 
@@ -303,6 +305,32 @@ export const BrailleEditor = () => {
     hasClipboard: selection.hasClipboard
   });
 
+  // Additional keyboard shortcut for debug panel (Ctrl/Cmd + D)
+  useEffect(() => {
+    const handleDebugKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd') {
+        event.preventDefault();
+        setShowDebug(prev => !prev);
+      }
+    };
+
+    document.addEventListener('keydown', handleDebugKey);
+    return () => document.removeEventListener('keydown', handleDebugKey);
+  }, []);
+
+  // Debug panel for troubleshooting keyboard shortcuts
+  const debugInfo = {
+    hasSelection: selection.hasSelection,
+    selectedCellsCount: selection.selectedCells.size,
+    hasClipboard: selection.hasClipboard,
+    canUndo: historyIndex > 0,
+    canRedo: historyIndex < history.length - 1,
+    isShiftPressed,
+    selectedTool
+  };
+
+  console.log('Debug info:', debugInfo);
+
 return (
   <SidebarProvider defaultOpen={true}>
     <div className="min-h-screen w-full flex flex-col bg-background">
@@ -361,6 +389,43 @@ return (
             onClose={() => setEditingCell(null)}
           />
         )}
+
+        {/* Debug Panel - Remove this after fixing the issue 
+        {showDebug && (
+          <div className="fixed bottom-4 right-4 bg-black/80 text-white p-4 rounded-lg text-xs font-mono z-50">
+            <div className="mb-2 font-bold">Debug Panel (Ctrl+D to toggle)</div>
+            <div>Selection: {selection.hasSelection ? 'Yes' : 'No'}</div>
+            <div>Selected: {selection.selectedCells.size}</div>
+            <div>Clipboard: {selection.hasClipboard ? 'Yes' : 'No'}</div>
+            <div>Can Undo: {historyIndex > 0 ? 'Yes' : 'No'}</div>
+            <div>Can Redo: {historyIndex < history.length - 1 ? 'Yes' : 'No'}</div>
+            <div>Shift: {isShiftPressed ? 'Pressed' : 'No'}</div>
+            <div>Tool: {selectedTool}</div>
+            <div className="mt-4 space-y-1">
+              <button 
+                onClick={handleUndo} 
+                disabled={historyIndex <= 0}
+                className="block w-full px-2 py-1 bg-blue-600 disabled:bg-gray-600 rounded text-xs"
+              >
+                Test Undo
+              </button>
+              <button 
+                onClick={handleRedo} 
+                disabled={historyIndex >= history.length - 1}
+                className="block w-full px-2 py-1 bg-green-600 disabled:bg-gray-600 rounded text-xs"
+              >
+                Test Redo
+              </button>
+              <button 
+                onClick={selection.copySelectedCells} 
+                disabled={!selection.hasSelection}
+                className="block w-full px-2 py-1 bg-yellow-600 disabled:bg-gray-600 rounded text-xs"
+              >
+                Test Copy
+              </button>
+            </div>
+          </div>
+        )}*/}
       </div>
     </SidebarProvider>
   );
