@@ -29,8 +29,18 @@ export const CopyLetters = ({ grid }: CopyLettersProps) => {
 
   const copyToClipboard = async () => {
     try {
+      console.log('CopyLetters: Starting copy operation');
       const textContent = extractLettersFromGrid();
+      console.log('CopyLetters: Extracted text content length:', textContent.length);
+      
+      // Verificar se a API de clipboard está disponível
+      if (!navigator.clipboard) {
+        console.error('CopyLetters: Clipboard API not available');
+        throw new Error('Clipboard API not available');
+      }
+      
       await navigator.clipboard.writeText(textContent);
+      console.log('CopyLetters: Successfully copied to clipboard');
       
       toast({
         title: "Figura copiada",
@@ -38,7 +48,7 @@ export const CopyLetters = ({ grid }: CopyLettersProps) => {
         duration: 2000,
       });
     } catch (error) {
-      console.error('Erro ao copiar:', error);
+      console.error('CopyLetters: Error copying to clipboard:', error);
       toast({
         title: "Erro",
         description: "Não foi possível copiar para a área de transferência",
