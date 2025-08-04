@@ -149,6 +149,7 @@ export const BrailleEditor = () => {
 
     if (selectedTool === 'select') {
       const isCtrlPressed = event?.ctrlKey || event?.metaKey;
+      console.log('BrailleEditor: Selecting cell with Ctrl pressed:', isCtrlPressed);
       selection.selectCell(x, y, isCtrlPressed);
       
       // Update grid to show active cells
@@ -163,10 +164,12 @@ export const BrailleEditor = () => {
         }
         
         // Set active cells based on selection
+        console.log('BrailleEditor: Setting active cells based on selection:', selection.selectedCells.size);
         selection.selectedCells.forEach(cellKey => {
           const [cellX, cellY] = cellKey.split(',').map(Number);
           if (cellX >= 0 && cellX < grid.width && cellY >= 0 && cellY < grid.height) {
             newGrid.cells[cellY][cellX].isActive = true;
+            console.log('BrailleEditor: Set cell as active:', { cellX, cellY });
           }
         });
         
@@ -239,16 +242,26 @@ export const BrailleEditor = () => {
   }, [selection.selectedCells, handleCellDoubleClick]);
 
   const handlePasteAtCursor = useCallback(() => {
+    console.log('handlePasteAtCursor called:', {
+      selectedCellsSize: selection.selectedCells.size,
+      hasClipboard: selection.hasClipboard,
+      selectedCells: Array.from(selection.selectedCells)
+    });
+    
     if (selection.selectedCells.size === 1) {
       const cellKey = Array.from(selection.selectedCells)[0];
       const [x, y] = cellKey.split(',').map(Number);
+      console.log('Pasting at position:', { x, y });
       selection.pasteClipboard(x, y);
+    } else {
+      console.log('Cannot paste: no single cell selected');
     }
   }, [selection]);
 
   // Função para copiar letras da grade
   const handleCopyLetters = useCallback(async () => {
     try {
+      console.log('BrailleEditor: Starting copy letters operation');
       const lines: string[] = [];
       
       for (let y = 0; y < grid.height; y++) {
@@ -263,7 +276,16 @@ export const BrailleEditor = () => {
       }
       
       const textContent = lines.join('\n');
+      console.log('BrailleEditor: Extracted text content length:', textContent.length);
+      
+      // Verificar se a API de clipboard está disponível
+      if (!navigator.clipboard) {
+        console.error('BrailleEditor: Clipboard API not available');
+        throw new Error('Clipboard API not available');
+      }
+      
       await navigator.clipboard.writeText(textContent);
+      console.log('BrailleEditor: Successfully copied to clipboard');
       
       toast({
         title: "Figura copiada",
@@ -271,7 +293,7 @@ export const BrailleEditor = () => {
         duration: 2000,
       });
     } catch (error) {
-      console.error('Erro ao copiar:', error);
+      console.error('BrailleEditor: Error copying to clipboard:', error);
       toast({
         title: "Erro",
         description: "Não foi possível copiar para a área de transferência",

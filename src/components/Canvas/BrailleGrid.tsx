@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { BrailleGrid as BrailleGridType } from '@/types/braille';
 import { useDrawing } from '@/hooks/useDrawing';
 
@@ -21,7 +21,12 @@ const CELL_WIDTH = 20;
 const CELL_HEIGHT = 30;
 const DOT_RADIUS = 2;
 
-export const BrailleGrid: React.FC<BrailleGridProps> = ({
+export interface BrailleGridRef {
+  canvasRef: React.RefObject<HTMLCanvasElement>;
+  getMousePosition: (event: React.MouseEvent<HTMLCanvasElement>) => { x: number; y: number };
+}
+
+export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(({
   grid,
   zoom,
   onMouseDown,
@@ -33,7 +38,7 @@ export const BrailleGrid: React.FC<BrailleGridProps> = ({
   selection,
   selectedTool,
   onGridChange
-}) => {
+}, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   const {
@@ -43,6 +48,21 @@ export const BrailleGrid: React.FC<BrailleGridProps> = ({
     finishDrawing,
     cancelDrawing
   } = useDrawing(grid, onGridChange || (() => {}));
+
+  // Expor o canvasRef e getMousePosition para o componente pai
+  useImperativeHandle(ref, () => ({
+    canvasRef,
+    getMousePosition: (event: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return { x: 0, y: 0 };
+
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (event.clientX - rect.left) / zoom,
+        y: (event.clientY - rect.top) / zoom
+      };
+    }
+  }), [zoom]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -222,7 +242,6 @@ export const BrailleGrid: React.FC<BrailleGridProps> = ({
     }
   };
 
-
   const getMousePosition = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -235,17 +254,14 @@ export const BrailleGrid: React.FC<BrailleGridProps> = ({
   };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    console.log('handleMouseDown called, selectedTool:', selectedTool);
+    console.log('BrailleGrid handleMouseDown called, selectedTool:', selectedTool);
     const pos = getMousePosition(event);
-    console.log('mouse position:', pos);
+    console.log('BrailleGrid mouse position:', pos);
     
     if (selectedTool === 'pencil' || selectedTool === 'eraser') {
-      console.log('Starting drawing/erasing');
+      console.log('BrailleGrid: Starting drawing/erasing');
       startDrawing(pos.x, pos.y, selectedTool);
       event.stopPropagation(); // Evita propagação dupla
-    } else if (selectedTool === 'select') {
-      // Para seleção, usar coordenadas reais do evento
-      onMouseDown(event);
     } else if (selectedTool === 'text') {
       const cellX = Math.floor(pos.x / CELL_WIDTH);
       const cellY = Math.floor(pos.y / CELL_HEIGHT);
@@ -261,6 +277,7 @@ export const BrailleGrid: React.FC<BrailleGridProps> = ({
         onCellClick(cellX, cellY, event);
       }
     }
+    // Para a ferramenta 'select', não fazemos nada aqui - será gerenciado pelo DrawingArea
   };
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -268,18 +285,16 @@ export const BrailleGrid: React.FC<BrailleGridProps> = ({
       const pos = getMousePosition(event);
       continueDrawing(pos.x, pos.y, selectedTool);
       event.stopPropagation();
-    } else if (selectedTool === 'select') {
-      onMouseMove(event);
     }
+    // Para a ferramenta 'select', não fazemos nada aqui - será gerenciado pelo DrawingArea
   };
 
   const handleMouseUp = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if ((selectedTool === 'pencil' || selectedTool === 'eraser') && isDrawing) {
       finishDrawing();
       event.stopPropagation();
-    } else if (selectedTool === 'select') {
-      onMouseUp(event);
     }
+    // Para a ferramenta 'select', não fazemos nada aqui - será gerenciado pelo DrawingArea
   };
 
   const handleMouseLeave = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -287,8 +302,10 @@ export const BrailleGrid: React.FC<BrailleGridProps> = ({
       cancelDrawing();
     }
     
-    // Propagar evento para área de desenho
-    onMouseLeave(event);
+    // Propagar evento para área de desenho apenas para ferramentas não-select
+    if (selectedTool !== 'select') {
+      onMouseLeave(event);
+    }
   };
 
   return (
@@ -307,8 +324,21 @@ export const BrailleGrid: React.FC<BrailleGridProps> = ({
       />
       
       {/* Selection overlay */}
-      {((selection.isSelecting && selection.selectionStart && selection.selectionEnd) || 
-        (selection.hasSelection && selection.selectedCells.size > 0)) && (
+      {(() => {
+        // Simplificar a lógica: mostrar overlay sempre que há células selecionadas
+        const hasSelectedCells = selection.selectedCells.size > 0;
+        const isCurrentlySelecting = selection.isSelecting && selection.selectionStart && selection.selectionEnd;
+        
+        console.log('BrailleGrid: Selection overlay condition:', {
+          isSelecting: selection.isSelecting,
+          hasSelection: selection.hasSelection,
+          selectedCellsSize: selection.selectedCells.size,
+          hasSelectedCells,
+          isCurrentlySelecting
+        });
+        
+        return hasSelectedCells || isCurrentlySelecting;
+      })() && (
         <div className="absolute inset-0 pointer-events-none">
           {selection.isSelecting && selection.selectionStart && selection.selectionEnd ? (
             // Retângulo durante seleção ativa
@@ -325,6 +355,7 @@ export const BrailleGrid: React.FC<BrailleGridProps> = ({
             // Retângulos para células selecionadas
             Array.from(selection.selectedCells).map((cellKey: string) => {
               const [x, y] = cellKey.split(',').map(Number);
+              console.log('Rendering selection overlay for cell:', { x, y, cellKey });
               return (
                 <div 
                   key={cellKey}
@@ -343,4 +374,4 @@ export const BrailleGrid: React.FC<BrailleGridProps> = ({
       )}
     </div>
   );
-};
+});
