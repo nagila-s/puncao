@@ -213,6 +213,14 @@ export const BrailleEditor = () => {
   }, [grid, handleGridChange]);
 
   const handleMoveSelection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
+    // Se há uma seleção, mover o conteúdo selecionado
+    if (selection.hasSelection) {
+      console.log('Moving selected content:', direction);
+      selection.moveSelection(direction);
+      return;
+    }
+    
+    // Caso contrário, mover apenas o cursor de seleção (comportamento anterior)
     if (selection.selectedCells.size !== 1) return;
     
     const cellKey = Array.from(selection.selectedCells)[0];

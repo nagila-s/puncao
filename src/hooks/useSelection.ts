@@ -23,8 +23,245 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<{ x: number; y: number } | null>(null);
+  
+  // Estado para drag & drop
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
 
   const getCellKey = (x: number, y: number) => `${x},${y}`;
+
+  // Função para mover seleção com setas direcionais
+  const moveSelection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
+    if (selectedCells.size === 0) return;
+
+    const cellCoords = Array.from(selectedCells).map(key => {
+      const [x, y] = key.split(',').map(Number);
+      return { x, y };
+    });
+
+    const minX = Math.min(...cellCoords.map(c => c.x));
+    const maxX = Math.max(...cellCoords.map(c => c.x));
+    const minY = Math.min(...cellCoords.map(c => c.y));
+    const maxY = Math.max(...cellCoords.map(c => c.y));
+
+    let deltaX = 0;
+    let deltaY = 0;
+
+    switch (direction) {
+      case 'up':
+        deltaY = -1;
+        break;
+      case 'down':
+        deltaY = 1;
+        break;
+      case 'left':
+        deltaX = -1;
+        break;
+      case 'right':
+        deltaX = 1;
+        break;
+    }
+
+    // Verificar se o movimento é possível
+    const newMinX = minX + deltaX;
+    const newMaxX = maxX + deltaX;
+    const newMinY = minY + deltaY;
+    const newMaxY = maxY + deltaY;
+
+    if (newMinX < 0 || newMaxX >= grid.width || newMinY < 0 || newMaxY >= grid.height) {
+      return; // Movimento não é possível
+    }
+
+    // Criar nova grade com o conteúdo movido
+    const newGrid = JSON.parse(JSON.stringify(grid));
+    
+    // Primeiro, limpar as células originais
+    selectedCells.forEach(cellKey => {
+      const [x, y] = cellKey.split(',').map(Number);
+      newGrid.cells[y][x] = {
+        x,
+        y,
+        dots: [],
+        letter: ' ',
+        isActive: false
+      };
+    });
+
+    // Depois, mover o conteúdo para as novas posições
+    selectedCells.forEach(cellKey => {
+      const [x, y] = cellKey.split(',').map(Number);
+      const newX = x + deltaX;
+      const newY = y + deltaY;
+      
+      if (newX >= 0 && newX < grid.width && newY >= 0 && newY < grid.height) {
+        newGrid.cells[newY][newX] = {
+          ...grid.cells[y][x],
+          x: newX,
+          y: newY
+        };
+      }
+    });
+
+    // Atualizar seleção para as novas posições
+    const newSelectedCells = new Set<string>();
+    selectedCells.forEach(cellKey => {
+      const [x, y] = cellKey.split(',').map(Number);
+      const newX = x + deltaX;
+      const newY = y + deltaY;
+      newSelectedCells.add(getCellKey(newX, newY));
+    });
+
+    setSelectedCells(newSelectedCells);
+    onGridChange(newGrid);
+  }, [selectedCells, grid, onGridChange]);
+
+  // Função para iniciar drag & drop
+  const startDrag = useCallback((x: number, y: number) => {
+    console.log('startDrag called:', { x, y, selectedCellsSize: selectedCells.size });
+    
+    if (selectedCells.size === 0) {
+      console.log('No cells selected, cannot start drag');
+      return;
+    }
+    
+    const cellX = Math.floor(x / CELL_WIDTH);
+    const cellY = Math.floor(y / CELL_HEIGHT);
+    
+    // Verificar se o clique foi em uma célula selecionada
+    const cellKey = getCellKey(cellX, cellY);
+    console.log('Checking if click is on selected cell:', { cellX, cellY, cellKey, isSelected: selectedCells.has(cellKey) });
+    
+    if (!selectedCells.has(cellKey)) {
+      console.log('Click not on selected cell, cannot start drag');
+      return;
+    }
+    
+    console.log('Starting drag from cell:', { cellX, cellY });
+    setIsDragging(true);
+    setDragStart({ x: cellX, y: cellY });
+    setDragOffset({ x: 0, y: 0 });
+  }, [selectedCells]);
+
+  // Função para atualizar drag & drop
+  const updateDrag = useCallback((x: number, y: number) => {
+    if (!isDragging || !dragStart) {
+      console.log('Not dragging or no drag start, ignoring updateDrag');
+      return;
+    }
+    
+    const cellX = Math.floor(x / CELL_WIDTH);
+    const cellY = Math.floor(y / CELL_HEIGHT);
+    
+    const deltaX = cellX - dragStart.x;
+    const deltaY = cellY - dragStart.y;
+    
+    console.log('Updating drag:', { cellX, cellY, deltaX, deltaY });
+    setDragOffset({ x: deltaX, y: deltaY });
+  }, [isDragging, dragStart]);
+
+  // Função para finalizar drag & drop
+  const finishDrag = useCallback(() => {
+    console.log('finishDrag called, isDragging:', isDragging, 'dragOffset:', dragOffset);
+    
+    // Sempre resetar o estado de drag primeiro
+    setIsDragging(false);
+    setDragStart(null);
+    setDragOffset(null);
+    
+    if (!isDragging) {
+      console.log('Not dragging, nothing to finish');
+      return;
+    }
+    
+    const { x: deltaX, y: deltaY } = dragOffset || { x: 0, y: 0 };
+    
+    console.log('Drag finished with offset:', { deltaX, deltaY });
+    
+    if (deltaX === 0 && deltaY === 0) {
+      // Sem movimento, apenas finalizar drag
+      console.log('No movement detected, just finishing drag');
+      return;
+    }
+
+    // Verificar se o movimento é possível
+    const cellCoords = Array.from(selectedCells).map(key => {
+      const [x, y] = key.split(',').map(Number);
+      return { x, y };
+    });
+
+    const minX = Math.min(...cellCoords.map(c => c.x));
+    const maxX = Math.max(...cellCoords.map(c => c.x));
+    const minY = Math.min(...cellCoords.map(c => c.y));
+    const maxY = Math.max(...cellCoords.map(c => c.y));
+
+    const newMinX = minX + deltaX;
+    const newMaxX = maxX + deltaX;
+    const newMinY = minY + deltaY;
+    const newMaxY = maxY + deltaY;
+
+    if (newMinX < 0 || newMaxX >= grid.width || newMinY < 0 || newMaxY >= grid.height) {
+      // Movimento não é possível, apenas finalizar drag
+      console.log('Movement not possible, cancelling drag');
+      return;
+    }
+
+    // Mover o conteúdo
+    const newGrid = JSON.parse(JSON.stringify(grid));
+    
+    // Primeiro, limpar as células originais
+    selectedCells.forEach(cellKey => {
+      const [x, y] = cellKey.split(',').map(Number);
+      newGrid.cells[y][x] = {
+        x,
+        y,
+        dots: [],
+        letter: ' ',
+        isActive: false
+      };
+    });
+
+    // Depois, mover o conteúdo para as novas posições
+    selectedCells.forEach(cellKey => {
+      const [x, y] = cellKey.split(',').map(Number);
+      const newX = x + deltaX;
+      const newY = y + deltaY;
+      
+      if (newX >= 0 && newX < grid.width && newY >= 0 && newY < grid.height) {
+        newGrid.cells[newY][newX] = {
+          ...grid.cells[y][x],
+          x: newX,
+          y: newY
+        };
+      }
+    });
+
+    // Atualizar seleção para as novas posições
+    const newSelectedCells = new Set<string>();
+    selectedCells.forEach(cellKey => {
+      const [x, y] = cellKey.split(',').map(Number);
+      const newX = x + deltaX;
+      const newY = y + deltaY;
+      newSelectedCells.add(getCellKey(newX, newY));
+    });
+
+    setSelectedCells(newSelectedCells);
+    onGridChange(newGrid);
+    
+    console.log('Finished dragging, moved selection by:', { deltaX, deltaY });
+  }, [isDragging, dragOffset, selectedCells, grid, onGridChange]);
+
+  // Função para cancelar drag & drop
+  const cancelDrag = useCallback(() => {
+    console.log('cancelDrag called, isDragging:', isDragging);
+    
+    // Sempre resetar o estado de drag
+    setIsDragging(false);
+    setDragStart(null);
+    setDragOffset(null);
+    
+    console.log('Drag cancelled');
+  }, [isDragging]);
 
   const startSelection = useCallback((x: number, y: number) => {
     const cellX = Math.floor(x / CELL_WIDTH);
@@ -212,6 +449,14 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
     pasteClipboard,
     deleteSelectedCells,
     hasClipboard: clipboard !== null,
-    hasSelection: selectedCells.size > 0
+    hasSelection: selectedCells.size > 0,
+    isDragging,
+    dragStart,
+    dragOffset,
+    startDrag,
+    updateDrag,
+    finishDrag,
+    cancelDrag,
+    moveSelection
   };
 };

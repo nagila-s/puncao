@@ -46,6 +46,21 @@ export const DrawingArea = ({
   const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
   const [lastClickTime, setLastClickTime] = useState(0);
   const [lastClickPos, setLastClickPos] = useState<{ x: number; y: number } | null>(null);
+  
+  // Estado para controlar drag & drop
+  const [isDraggingSelection, setIsDraggingSelection] = useState(false);
+  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
+
+  // Sincronizar estado de drag com o hook de seleção
+  useEffect(() => {
+    console.log('DrawingArea: useEffect - selection.isDragging:', selection?.isDragging, 'isDraggingSelection:', isDraggingSelection);
+    
+    if (!selection?.isDragging && isDraggingSelection) {
+      console.log('DrawingArea: Syncing drag state - resetting local drag state');
+      setIsDraggingSelection(false);
+      setDragStartPos(null);
+    }
+  }, [selection?.isDragging, isDraggingSelection]);
 
   const currentResolution = {
     width: grid.width,
@@ -74,7 +89,13 @@ export const DrawingArea = ({
 
   // Handlers de mouse para a ferramenta 'select'
   const handleSelectMouseDown = (e: React.MouseEvent) => {
-    if (selectedTool !== 'select') return;
+    console.log('DrawingArea: handleSelectMouseDown called with tool:', selectedTool);
+    
+    if (selectedTool !== 'select') {
+      console.log('DrawingArea: Tool is not select, current tool:', selectedTool);
+      console.log('DrawingArea: Please click the "Select" button (mouse icon) in the sidebar first');
+      return;
+    }
     
     const canvas = brailleGridRef.current?.canvasRef.current;
     if (!canvas) return;
@@ -83,8 +104,38 @@ export const DrawingArea = ({
     const x = (e.clientX - rect.left) / zoom;
     const y = (e.clientY - rect.top) / zoom;
     
-    console.log('DrawingArea: handleSelectMouseDown', { x, y, selectedTool });
+    const selectedCellsSize = selection.selectedCells.size;
     
+    console.log('DrawingArea: handleSelectMouseDown', { 
+      x, y, selectedTool, 
+      selectedCellsSize
+    });
+    
+    // Verificar se há células selecionadas para iniciar drag
+    if (selectedCellsSize > 0) {
+      const { cellX, cellY } = getCellCoordinates(x, y);
+      const cellKey = `${cellX},${cellY}`;
+      
+      console.log('DrawingArea: Checking if click is on selected cell:', { 
+        cellX, cellY, cellKey, 
+        isSelected: selection.selectedCells.has(cellKey),
+        selectedCells: Array.from(selection.selectedCells)
+      });
+      
+      if (selection.selectedCells.has(cellKey)) {
+        // Iniciar drag & drop
+        console.log('DrawingArea: Starting drag & drop');
+        setIsDraggingSelection(true);
+        setDragStartPos({ x, y });
+        selection.startDrag(x, y);
+        return;
+      } else {
+        console.log('DrawingArea: Click not on selected cell, starting normal selection');
+      }
+    }
+    
+    // Caso contrário, iniciar seleção normal
+    console.log('DrawingArea: Starting normal selection');
     setIsSelecting(true);
     setSelectionStart({ x, y });
     setLastClickTime(Date.now());
@@ -95,7 +146,7 @@ export const DrawingArea = ({
   };
 
   const handleSelectMouseMove = (e: React.MouseEvent) => {
-    if (selectedTool !== 'select' || !isSelecting) return;
+    if (selectedTool !== 'select') return;
     
     const canvas = brailleGridRef.current?.canvasRef.current;
     if (!canvas) return;
@@ -104,10 +155,25 @@ export const DrawingArea = ({
     const x = (e.clientX - rect.left) / zoom;
     const y = (e.clientY - rect.top) / zoom;
     
-    console.log('DrawingArea: handleSelectMouseMove', { x, y, isSelecting });
+    const selectedCellsSize = selection.selectedCells.size;
     
-    // Atualizar seleção
-    selection?.updateSelection?.(x, y);
+    console.log('DrawingArea: handleSelectMouseMove', { 
+      x, y, isSelecting, isDraggingSelection,
+      selectedCellsSize
+    });
+    
+    // Se estiver fazendo drag & drop (só se há seleção válida)
+    if ((isDraggingSelection || selection?.isDragging) && selectedCellsSize > 0) {
+      console.log('DrawingArea: Updating drag');
+      selection.updateDrag(x, y);
+      return;
+    }
+    
+    // Se estiver fazendo seleção
+    if (isSelecting) {
+      console.log('DrawingArea: Updating selection');
+      selection?.updateSelection?.(x, y);
+    }
   };
 
   const handleSelectMouseUp = (e: React.MouseEvent) => {
@@ -120,7 +186,32 @@ export const DrawingArea = ({
     const x = (e.clientX - rect.left) / zoom;
     const y = (e.clientY - rect.top) / zoom;
     
-    console.log('DrawingArea: handleSelectMouseUp', { x, y, isSelecting });
+    const selectedCellsSize = selection.selectedCells.size;
+    
+    console.log('DrawingArea: handleSelectMouseUp', { 
+      x, y, isSelecting, isDraggingSelection,
+      selectedCellsSize,
+      selectionIsDragging: selection?.isDragging
+    });
+    
+    // Se estiver fazendo drag & drop (só se há seleção válida)
+    if ((isDraggingSelection || selection?.isDragging) && selectedCellsSize > 0) {
+      console.log('DrawingArea: Finishing drag - calling selection.finishDrag()');
+      selection.finishDrag();
+      console.log('DrawingArea: After finishDrag - setting local state to false');
+      setIsDraggingSelection(false);
+      setDragStartPos(null);
+      return;
+    }
+    
+    // Se estava tentando fazer drag mas não havia seleção, cancelar
+    if (isDraggingSelection) {
+      console.log('DrawingArea: Cancelling invalid drag');
+      selection?.cancelDrag?.();
+      setIsDraggingSelection(false);
+      setDragStartPos(null);
+      return;
+    }
     
     // Verificar se é um clique simples
     if (isSelecting && selectionStart && lastClickPos && lastClickTime) {
@@ -156,7 +247,31 @@ export const DrawingArea = ({
   const handleSelectMouseLeave = (e: React.MouseEvent) => {
     if (selectedTool !== 'select') return;
     
-    console.log('DrawingArea: handleSelectMouseLeave');
+    const selectedCellsSize = selection.selectedCells.size;
+    
+    console.log('DrawingArea: handleSelectMouseLeave', {
+      isDraggingSelection,
+      selectedCellsSize
+    });
+    
+    // Se estiver fazendo drag & drop (só se há seleção válida)
+    if ((isDraggingSelection || selection?.isDragging) && selectedCellsSize > 0) {
+      console.log('DrawingArea: Cancelling drag on mouse leave');
+      selection.cancelDrag();
+      setIsDraggingSelection(false);
+      setDragStartPos(null);
+      return;
+    }
+    
+    // Se estava tentando fazer drag mas não havia seleção, cancelar
+    if (isDraggingSelection) {
+      console.log('DrawingArea: Cancelling invalid drag on mouse leave');
+      selection?.cancelDrag?.();
+      setIsDraggingSelection(false);
+      setDragStartPos(null);
+      return;
+    }
+    
     setIsSelecting(false);
     setSelectionStart(null);
     selection?.finishSelection?.();
@@ -197,32 +312,6 @@ export const DrawingArea = ({
     
     selection?.finishSelection?.();
   };
-
-  // Adicionar/remover event listeners do canvas para a ferramenta 'select'
-  useEffect(() => {
-    const canvas = brailleGridRef.current?.canvasRef.current;
-    if (!canvas || selectedTool !== 'select') return;
-
-    console.log('DrawingArea: Adding select event listeners to canvas');
-
-    const handleMouseDown = (e: MouseEvent) => handleSelectMouseDown(e as any);
-    const handleMouseMove = (e: MouseEvent) => handleSelectMouseMove(e as any);
-    const handleMouseUp = (e: MouseEvent) => handleSelectMouseUp(e as any);
-    const handleMouseLeave = (e: MouseEvent) => handleSelectMouseLeave(e as any);
-
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseup', handleMouseUp);
-    canvas.addEventListener('mouseleave', handleMouseLeave);
-
-    return () => {
-      console.log('DrawingArea: Removing select event listeners from canvas');
-      canvas.removeEventListener('mousedown', handleMouseDown);
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mouseup', handleMouseUp);
-      canvas.removeEventListener('mouseleave', handleMouseLeave);
-    };
-  }, [selectedTool, isSelecting, selectionStart, lastClickTime, lastClickPos, zoom, grid.width, grid.height]);
 
   return (
     <div className="flex-1 flex flex-col bg-background">
@@ -265,10 +354,10 @@ export const DrawingArea = ({
             ref={brailleGridRef}
             grid={grid}
             zoom={zoom}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseLeave}
+            onMouseDown={selectedTool === 'select' ? handleSelectMouseDown : handleMouseDown}
+            onMouseMove={selectedTool === 'select' ? handleSelectMouseMove : handleMouseMove}
+            onMouseUp={selectedTool === 'select' ? handleSelectMouseUp : handleMouseUp}
+            onMouseLeave={selectedTool === 'select' ? handleSelectMouseLeave : handleMouseLeave}
             onCellClick={onCellClick}
             showLetters={propShowLetters ?? showLetters}
             selection={selection}
