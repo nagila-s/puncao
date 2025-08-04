@@ -2,6 +2,10 @@
 
 Punção é um editor de desenho em Braille feito com **React**, **TypeScript** e **Tailwind CSS**. A aplicação permite criar e editar figuras em Braille utilizando ferramentas de desenho, seleção e texto. O projeto foi originalmente gerado pela plataforma Lovable, mas todo o código está neste repositório.
 
+## Licença
+
+Este projeto está licenciado sob a [Creative Commons Atribuição-Compartilhamento Igual 4.0 Internacional (CC BY-SA 4.0)](LICENSE).
+
 ## Principais funcionalidades
 
 - Grade de células Braille configurável.
