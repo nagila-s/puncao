@@ -276,8 +276,11 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(({
       if (cellX >= 0 && cellX < grid.width && cellY >= 0 && cellY < grid.height) {
         onCellClick(cellX, cellY, event);
       }
+    } else if (selectedTool === 'select') {
+      // Para a ferramenta 'select', chamar o handler do DrawingArea
+      console.log('BrailleGrid: Calling DrawingArea handler for select tool');
+      onMouseDown(event);
     }
-    // Para a ferramenta 'select', não fazemos nada aqui - será gerenciado pelo DrawingArea
   };
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -285,16 +288,20 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(({
       const pos = getMousePosition(event);
       continueDrawing(pos.x, pos.y, selectedTool);
       event.stopPropagation();
+    } else if (selectedTool === 'select') {
+      // Para a ferramenta 'select', chamar o handler do DrawingArea
+      onMouseMove(event);
     }
-    // Para a ferramenta 'select', não fazemos nada aqui - será gerenciado pelo DrawingArea
   };
 
   const handleMouseUp = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if ((selectedTool === 'pencil' || selectedTool === 'eraser') && isDrawing) {
       finishDrawing();
       event.stopPropagation();
+    } else if (selectedTool === 'select') {
+      // Para a ferramenta 'select', chamar o handler do DrawingArea
+      onMouseUp(event);
     }
-    // Para a ferramenta 'select', não fazemos nada aqui - será gerenciado pelo DrawingArea
   };
 
   const handleMouseLeave = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -302,8 +309,8 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(({
       cancelDrawing();
     }
     
-    // Propagar evento para área de desenho apenas para ferramentas não-select
-    if (selectedTool !== 'select') {
+    // Para a ferramenta 'select', chamar o handler do DrawingArea
+    if (selectedTool === 'select') {
       onMouseLeave(event);
     }
   };
@@ -319,7 +326,22 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(({
         className="border border-border cursor-crosshair"
         style={{
           imageRendering: 'pixelated',
-          cursor: selectedTool === 'pencil' ? 'crosshair' : selectedTool === 'select' ? 'default' : 'pointer'
+          cursor: (() => {
+            let cursor = 'pointer';
+            if (selectedTool === 'pencil') {
+              cursor = 'crosshair';
+            } else if (selectedTool === 'select') {
+              if (selection?.isDragging) {
+                cursor = 'grabbing';
+              } else if (selection?.hasSelection) {
+                cursor = 'grab';
+              } else {
+                cursor = 'default';
+              }
+            }
+            
+            return cursor;
+          })()
         }}
       />
       
