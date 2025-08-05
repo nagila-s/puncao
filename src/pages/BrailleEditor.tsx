@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { AppSidebar } from '@/components/Sidebar/AppSidebar';
 import { DrawingArea } from '@/components/Canvas/DrawingArea';
