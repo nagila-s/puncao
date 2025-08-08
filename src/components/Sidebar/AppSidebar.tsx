@@ -20,12 +20,8 @@ import { Tool } from '@/types/braille';
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenu,
 } from "@/components/ui/sidebar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AppSidebarProps {
   selectedTool: Tool;
@@ -56,7 +52,10 @@ export function AppSidebar({
   hasSelection,
   hasClipboard
 }: AppSidebarProps) {
-  // Reorganizando conforme a imagem, mantendo estilo original
+  // Flags de features (por enquanto desabilitadas)
+  const SHAPES_AVAILABLE = false;
+  const UPLOAD_AVAILABLE = false;
+
   const group1 = [
     { action: 'undo', icon: Undo2, label: 'Desfazer', disabled: !canUndo, onClick: onUndo },
     { action: 'redo', icon: Redo2, label: 'Refazer', disabled: !canRedo, onClick: onRedo },
@@ -76,18 +75,20 @@ export function AppSidebar({
     { tool: 'eraser' as Tool, icon: Eraser, label: 'Borracha' },
   ];
 
+  // Formas geométricas — desativadas por enquanto
   const group5 = [
-    { tool: 'rectangle' as Tool, icon: Square, label: 'Retângulo' },
-    { tool: 'triangle' as Tool, icon: Triangle, label: 'Triângulo' },
+    { tool: 'rectangle' as Tool, icon: Square, label: 'Retângulo', disabled: !SHAPES_AVAILABLE, tooltip: 'Em breve: formas geométricas' },
+    { tool: 'triangle' as Tool, icon: Triangle, label: 'Triângulo', disabled: !SHAPES_AVAILABLE, tooltip: 'Em breve: formas geométricas' },
   ];
 
   const group6 = [
-    { tool: 'circle' as Tool, icon: Circle, label: 'Círculo' },
-    { tool: 'line' as Tool, icon: Minus, label: 'Linha' },
+    { tool: 'circle' as Tool, icon: Circle, label: 'Círculo', disabled: !SHAPES_AVAILABLE, tooltip: 'Em breve: formas geométricas' },
+    { tool: 'line' as Tool, icon: Minus, label: 'Linha', disabled: !SHAPES_AVAILABLE, tooltip: 'Em breve: formas geométricas' },
   ];
 
+  // Upload — desativado por enquanto
   const group7 = [
-    { tool: 'import' as Tool, icon: Upload, label: 'Importar' },
+    { tool: 'import' as Tool, icon: Upload, label: 'Importar', disabled: !UPLOAD_AVAILABLE, tooltip: 'Em breve: importar imagem' },
     { action: 'copy', icon: Copy, label: 'Copiar', disabled: !hasSelection, onClick: onCopy },
   ];
 
@@ -96,9 +97,12 @@ export function AppSidebar({
     { action: 'paste', icon: Clipboard, label: 'Colar', disabled: !hasClipboard, onClick: onPaste },
   ];
 
-  const group9 = [
-    { action: 'help', icon: HelpCircle, label: 'Ajuda', disabled: false, onClick: onToggleHelp },
-  ];
+  const buttonBase =
+    "w-10 h-10 flex items-center justify-center border-2 border-sidebar-border transition-all";
+
+  const activeClasses = "bg-yellow-400 text-black";
+  const normalClasses = "bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent";
+  const disabledClasses = "bg-gray-200 text-gray-400 cursor-not-allowed";
 
   return (
     <Sidebar className="w-24 border-r" collapsible="none">
@@ -113,9 +117,7 @@ export function AppSidebar({
                   key={action.action}
                   onClick={action.onClick}
                   disabled={action.disabled}
-                  className="w-10 h-10 flex items-center justify-center border-2 border-sidebar-border 
-                           bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent 
-                           disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className={`${buttonBase} ${action.disabled ? disabledClasses : normalClasses}`}
                   title={action.label}
                 >
                   <IconComponent size={16} />
@@ -136,11 +138,7 @@ export function AppSidebar({
                 <button
                   key={tool.tool}
                   onClick={() => onToolChange(tool.tool)}
-                  className={`w-10 h-10 flex items-center justify-center border-2 border-sidebar-border transition-all
-                    ${isActive 
-                      ? 'bg-yellow-400 text-black' 
-                      : 'bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent'
-                    }`}
+                  className={`${buttonBase} ${isActive ? activeClasses : normalClasses}`}
                   title={tool.label}
                 >
                   <IconComponent size={16} />
@@ -160,11 +158,7 @@ export function AppSidebar({
                 <button
                   key={tool.tool}
                   onClick={() => onToolChange(tool.tool)}
-                  className={`w-10 h-10 flex items-center justify-center border-2 border-sidebar-border transition-all
-                    ${isActive 
-                      ? 'bg-yellow-400 text-black' 
-                      : 'bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent'
-                    }`}
+                  className={`${buttonBase} ${isActive ? activeClasses : normalClasses}`}
                   title={tool.label}
                 >
                   <IconComponent size={16} />
@@ -184,11 +178,7 @@ export function AppSidebar({
                 <button
                   key={tool.tool}
                   onClick={() => onToolChange(tool.tool)}
-                  className={`w-10 h-10 flex items-center justify-center border-2 border-sidebar-border transition-all
-                    ${isActive 
-                      ? 'bg-yellow-400 text-black' 
-                      : 'bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent'
-                    }`}
+                  className={`${buttonBase} ${isActive ? activeClasses : normalClasses}`}
                   title={tool.label}
                 >
                   <IconComponent size={16} />
@@ -200,77 +190,87 @@ export function AppSidebar({
           <div className="w-full h-px bg-sidebar-border" />
         </div>
 
-        {/* Grupo 5: Retângulo/Triângulo */}
+        {/* Grupo 5: Retângulo/Triângulo (desabilitados) */}
         <div className="space-y-1">
           <div className="grid grid-cols-2 gap-1">
             {group5.map((tool) => {
               const IconComponent = tool.icon;
-              const isActive = selectedTool === tool.tool;
               return (
-                <button
-                  key={tool.tool}
-                  onClick={() => onToolChange(tool.tool)}
-                  className={`w-10 h-10 flex items-center justify-center border-2 border-sidebar-border transition-all
-                    ${isActive 
-                      ? 'bg-yellow-400 text-black' 
-                      : 'bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent'
-                    }`}
-                  title={tool.label}
-                >
-                  <IconComponent size={16} />
-                </button>
+                <Tooltip key={tool.tool}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => !tool.disabled && onToolChange(tool.tool)}
+                      disabled={tool.disabled}
+                      className={`${buttonBase} ${tool.disabled ? disabledClasses : normalClasses}`}
+                      title={tool.label}
+                      aria-disabled={tool.disabled}
+                    >
+                      <IconComponent size={16} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    {tool.tooltip}
+                  </TooltipContent>
+                </Tooltip>
               );
             })}
           </div>
         </div>
 
-        {/* Grupo 6: Círculo/Linha */}
+        {/* Grupo 6: Círculo/Linha (desabilitados) */}
         <div className="space-y-1">
           <div className="grid grid-cols-2 gap-1">
             {group6.map((tool) => {
               const IconComponent = tool.icon;
-              const isActive = selectedTool === tool.tool;
               return (
-                <button
-                  key={tool.tool}
-                  onClick={() => onToolChange(tool.tool)}
-                  className={`w-10 h-10 flex items-center justify-center border-2 border-sidebar-border transition-all
-                    ${isActive 
-                      ? 'bg-yellow-400 text-black' 
-                      : 'bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent'
-                    }`}
-                  title={tool.label}
-                >
-                  <IconComponent size={16} />
-                </button>
+                <Tooltip key={tool.tool}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => !tool.disabled && onToolChange(tool.tool)}
+                      disabled={tool.disabled}
+                      className={`${buttonBase} ${tool.disabled ? disabledClasses : normalClasses}`}
+                      title={tool.label}
+                      aria-disabled={tool.disabled}
+                    >
+                      <IconComponent size={16} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    {tool.tooltip}
+                  </TooltipContent>
+                </Tooltip>
               );
             })}
           </div>
           <div className="w-full h-px bg-sidebar-border" />
         </div>
 
-        {/* Grupo 7: Import/Copy */}
+        {/* Grupo 7: Import (desabilitado) / Copiar */}
         <div className="space-y-1">
           <div className="grid grid-cols-2 gap-1">
-            {/* Import */}
-            <button
-              onClick={() => onToolChange(group7[0].tool)}
-              className={`w-10 h-10 flex items-center justify-center border-2 border-sidebar-border transition-all
-                ${selectedTool === group7[0].tool 
-                  ? 'bg-yellow-400 text-black' 
-                  : 'bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent'
-                }`}
-              title={group7[0].label}
-            >
-              <Upload size={16} />
-            </button>
+            {/* Import (disabled) */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {/* no-op enquanto indisponível */}}
+                  disabled={group7[0].disabled}
+                  className={`${buttonBase} ${group7[0].disabled ? disabledClasses : (selectedTool === group7[0].tool ? activeClasses : normalClasses)}`}
+                  title={group7[0].label}
+                  aria-disabled={group7[0].disabled}
+                >
+                  <Upload size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {group7[0].tooltip}
+              </TooltipContent>
+            </Tooltip>
+
             {/* Copy */}
             <button
-              onClick={onCopy}
-              disabled={!hasSelection}
-              className="w-10 h-10 flex items-center justify-center border-2 border-sidebar-border 
-                       bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent 
-                       disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              onClick={group7[1].onClick}
+              disabled={group7[1].disabled}
+              className={`${buttonBase} ${group7[1].disabled ? disabledClasses : normalClasses}`}
               title={group7[1].label}
             >
               <Copy size={16} />
@@ -288,9 +288,7 @@ export function AppSidebar({
                   key={action.action}
                   onClick={action.onClick}
                   disabled={action.disabled}
-                  className="w-10 h-10 flex items-center justify-center border-2 border-sidebar-border 
-                           bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent 
-                           disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className={`${buttonBase} ${action.disabled ? disabledClasses : normalClasses}`}
                   title={action.label}
                 >
                   <IconComponent size={16} />
@@ -304,20 +302,13 @@ export function AppSidebar({
         {/* Grupo 9: Help */}
         <div className="space-y-1">
           <div className="grid grid-cols-2 gap-1">
-            {group9.map((action) => {
-              const IconComponent = action.icon;
-              return (
-                <button
-                  key={action.action}
-                  onClick={action.onClick}
-                  className="w-10 h-10 flex items-center justify-center border-2 border-sidebar-border 
-                           bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent transition-all"
-                  title={action.label}
-                >
-                  <IconComponent size={16} />
-                </button>
-              );
-            })}
+            <button
+              onClick={onToggleHelp}
+              className={`${buttonBase} ${normalClasses}`}
+              title="Ajuda"
+            >
+              <HelpCircle size={16} />
+            </button>
             <div />
           </div>
         </div>
