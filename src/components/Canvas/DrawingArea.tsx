@@ -7,6 +7,8 @@ import { ResolutionControls } from '../Controls/ResolutionControls';
 import { CopyLetters } from '../Controls/CopyLetters';
 import { TextElement } from '../TextOverlay/TextElement';
 import { BrailleGrid as BrailleGridType } from '@/types/braille';
+import { PrintDrawing } from "../Controls/PrintDrawing";
+
 
 interface DrawingAreaProps {
   grid: BrailleGridType;
@@ -331,6 +333,7 @@ export const DrawingArea = ({
             />
             
             <CopyLetters grid={grid} />
+            <PrintDrawing grid={grid} />
           </div>
 
           <div className="flex items-center gap-2">
