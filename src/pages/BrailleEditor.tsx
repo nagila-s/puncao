@@ -11,6 +11,7 @@ import { useTextOverlay } from '@/hooks/useTextOverlay';
 import { useShapes } from '@/hooks/useShapes';
 import { useToast } from '@/hooks/use-toast';
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { writeTextToGridWithDots } from '@/lib/textPlacement';
 
 const createEmptyGrid = (characters: number, lines: number): BrailleGrid => {
   const cells: BrailleCell[][] = [];
@@ -188,11 +189,11 @@ export const BrailleEditor = () => {
     } else if (selectedTool === 'text') {
       const text = prompt('Digite o texto:');
       if (text && text.trim()) {
-        // Converter coordenadas de célula para pixel
-        const pixelX = x * 20; // CELL_WIDTH
-        const pixelY = y * 30; // CELL_HEIGHT
-        textOverlay.addTextElement(text.trim(), pixelX, pixelY);
-      }
+      const newGrid = writeTextToGridWithDots(grid, x, y, text.trim());
+      handleGridChange(newGrid);
+     // não altera showLetters: você continua vendo PONTOS por padrão
+    }
+
     } else if (selectedTool === 'fill') {
       // Preencher área com flood fill
       console.log('Fill tool activated at cell:', x, y);
@@ -275,7 +276,6 @@ export const BrailleEditor = () => {
         let line = '';
         for (let x = 0; x < grid.width; x++) {
           const cell = grid.cells[y][x];
-          // Se a célula tem uma letra válida, usa ela, senão usa espaço
           const letter = cell.letter && cell.letter !== ' ' ? cell.letter : ' ';
           line += letter;
         }
@@ -285,7 +285,6 @@ export const BrailleEditor = () => {
       const textContent = lines.join('\n');
       console.log('BrailleEditor: Extracted text content length:', textContent.length);
       
-      // Verificar se a API de clipboard está disponível
       if (!navigator.clipboard) {
         console.error('BrailleEditor: Clipboard API not available');
         throw new Error('Clipboard API not available');
@@ -360,19 +359,19 @@ export const BrailleEditor = () => {
 
   console.log('Debug info:', debugInfo);
 
-return (
-  <SidebarProvider defaultOpen={true}>
-    <div className="min-h-screen w-full flex flex-col bg-background">
-      {/* Header com logo e título */}
-      <div className="h-12 bg-[#F0C930] border-b flex items-center px-4 flex-shrink-0">
-        {/*<SidebarTrigger className="mr-4" />*/}
-        <img
-          src="/logo-puncao.png"
-          alt="Logo Punção"
-          className="h-7 w-auto mr-2"
-        />
-        <h1 className="titulo-principal text-foreground">Punção</h1>
-      </div>
+  return (
+    <SidebarProvider defaultOpen={true}>
+      <div className="min-h-screen w-full flex flex-col bg-background">
+        {/* Header com logo e título */}
+        <div className="h-12 bg-[#F0C930] border-b flex items-center px-4 flex-shrink-0">
+          {/*<SidebarTrigger className="mr-4" />*/}
+          <img
+            src="/logo-puncao.png"
+            alt="Logo Punção"
+            className="h-7 w-auto mr-2"
+          />
+          <h1 className="titulo-principal text-foreground">Punção</h1>
+        </div>
 
         {/* Layout principal */}
         <div className="flex w-full flex-1 min-h-0">
