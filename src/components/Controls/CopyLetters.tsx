@@ -1,73 +1,50 @@
-import { Copy } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { BrailleGrid } from '@/types/braille';
-import { useToast } from '@/hooks/use-toast';
+// src/components/Controls/CopyLetters.tsx
+import * as React from "react";
+import { Button } from "@/components/ui/button";
+import { Copy as CopyIcon } from "lucide-react";
+import type { BrailleGrid } from "@/types/braille";
+import { gridToLetters } from "@/lib/encoding";
+import { useToast } from "@/hooks/use-toast";
 
-interface CopyLettersProps {
+type CopyLettersProps = {
   grid: BrailleGrid;
-}
+};
 
-export const CopyLetters = ({ grid }: CopyLettersProps) => {
+export function CopyLetters({ grid }: CopyLettersProps) {
   const { toast } = useToast();
 
-  const extractLettersFromGrid = (): string => {
-    const lines: string[] = [];
-    
-    for (let y = 0; y < grid.height; y++) {
-      let line = '';
-      for (let x = 0; x < grid.width; x++) {
-        const cell = grid.cells[y][x];
-        // Se a célula tem uma letra válida, usa ela, senão usa espaço
-        const letter = cell.letter && cell.letter !== ' ' ? cell.letter : ' ';
-        line += letter;
-      }
-      lines.push(line);
-    }
-    
-    return lines.join('\n');
-  };
-
-  const copyToClipboard = async () => {
+  const handleCopy = React.useCallback(async () => {
     try {
-      console.log('CopyLetters: Starting copy operation');
-      const textContent = extractLettersFromGrid();
-      console.log('CopyLetters: Extracted text content length:', textContent.length);
-      
-      // Verificar se a API de clipboard está disponível
-      if (!navigator.clipboard) {
-        console.error('CopyLetters: Clipboard API not available');
-        throw new Error('Clipboard API not available');
-      }
-      
-      await navigator.clipboard.writeText(textContent);
-      console.log('CopyLetters: Successfully copied to clipboard');
-      
+      // Gera texto com CRLF, que funciona bem em Bloco de Notas/Windows e ajuda na embosser
+      const text = gridToLetters(grid, "\r\n");
+      await navigator.clipboard.writeText(text);
+
       toast({
-        title: "Figura copiada",
-        description: "Conteúdo em letras copiado para a área de transferência",
-        duration: 2000,
+        title: "Copiado",
+        description: "Letras copiadas para a área de transferência.",
+        duration: 1800,
       });
-    } catch (error) {
-      console.error('CopyLetters: Error copying to clipboard:', error);
+    } catch (e) {
+      console.error("[CopyLetters] Erro ao copiar:", e);
       toast({
         title: "Erro",
-        description: "Não foi possível copiar para a área de transferência",
+        description: "Não foi possível copiar o conteúdo.",
         variant: "destructive",
-        duration: 2000,
       });
     }
-  };
+  }, [grid, toast]);
 
   return (
     <Button
-      variant="outline"
+      type="button"
       size="sm"
-      onClick={copyToClipboard}
-      className="flex items-center gap-2"
-      title="Copiar letras da grade (Ctrl+Shift+C)"
+      variant="outline"
+      className="gap-2"
+      onClick={handleCopy}
+      title="Copiar letras (CRLF)"
     >
-      <Copy size={16} />
-      Copiar Letras
+      <CopyIcon size={16} />
+      Copiar letras
     </Button>
   );
-};
+}
