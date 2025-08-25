@@ -83,9 +83,9 @@ export const useShapes = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid) =
     const cells1 = getCellCoordinates(x1, y1);
     const cells2 = getCellCoordinates(x2, y2);
 
-    let minX = Math.min(cells1.cellX, cells2.cellX);
+    const minX = Math.min(cells1.cellX, cells2.cellX);
     let maxX = Math.max(cells1.cellX, cells2.cellX);
-    let minY = Math.min(cells1.cellY, cells2.cellY);
+    const minY = Math.min(cells1.cellY, cells2.cellY);
     let maxY = Math.max(cells1.cellY, cells2.cellY);
 
     // Se Shift pressionado, força quadrado perfeito
