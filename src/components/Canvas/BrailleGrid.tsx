@@ -19,9 +19,10 @@ export interface BrailleGridProps {
   selection: any;
   selectedTool: any;
   onGridChange?: (grid: BrailleGridType) => void;
+  hasClipboard: boolean;
+  onSelectionChange: (selection: any) => void;
 }
 
-// Medidas da célula/grade
 const CELL_WIDTH = 20;
 const CELL_HEIGHT = 30;
 const DOT_RADIUS = 2;
@@ -47,6 +48,8 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       selection,
       selectedTool,
       onGridChange,
+      hasClipboard,
+      onSelectionChange,
     },
     ref
   ) {
@@ -55,7 +58,6 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
     const { isDrawing, startDrawing, continueDrawing, finishDrawing, cancelDrawing } =
       useDrawing(grid, onGridChange || (() => {}));
 
-    // expõe ref e utilitário de coordenadas para o pai
     useImperativeHandle(
       ref,
       () => ({
@@ -72,7 +74,46 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       [zoom]
     );
 
-    // desenho do canvas
+    useEffect(() => {
+      onSelectionChange?.(selection);
+    }, [selection]);
+
+    // CORREÇÃO: Effect para limpar seleção quando muda ferramenta
+    useEffect(() => {
+      // Se mudou para uma ferramenta que não é select e há seleção ativa, limpar
+      if (selectedTool !== "select" && selection?.hasSelection && selection.clearSelection) {
+        console.log("🔴 Ferramenta mudou para", selectedTool, "- limpando seleção");
+        selection.clearSelection();
+      }
+    }, [selectedTool, selection?.hasSelection, selection?.clearSelection]);
+
+    // CORREÇÃO: Effect para ESC e outros eventos de teclado
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // ESC para limpar seleção
+        if (e.key === 'Escape' && selection?.hasSelection && selection.clearSelection) {
+          console.log("🔴 ESC pressionado - limpando seleção");
+          selection.clearSelection();
+          e.preventDefault();
+        }
+        
+        // Setas para mover seleção (só se ferramenta select estiver ativa)
+        if (selectedTool === "select" && selection?.hasSelection && selection.moveSelection && 
+            ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          e.preventDefault();
+          const direction = e.key.replace('Arrow', '').toLowerCase() as 'up' | 'down' | 'left' | 'right';
+          selection.moveSelection(direction);
+        }
+      };
+
+      // Adicionar listener de teclado
+      document.addEventListener('keydown', handleKeyDown);
+      
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }, [selectedTool, selection?.hasSelection, selection?.clearSelection, selection?.moveSelection]);
+
     useEffect(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -86,16 +127,13 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       canvas.width = grid.width * scaledCellW;
       canvas.height = grid.height * scaledCellH;
 
-      // cores do tema
       const root = getComputedStyle(document.documentElement);
       const drawingAreaColor = root.getPropertyValue("--drawing-area").trim();
       ctx.fillStyle = `hsl(${drawingAreaColor})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // grade
       drawGrid(ctx, grid, scaledCellW, scaledCellH, zoom);
 
-      // conteúdo das células
       for (let y = 0; y < grid.height; y++) {
         for (let x = 0; x < grid.width; x++) {
           const cell = grid.cells[y][x];
@@ -124,7 +162,6 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       ctx.strokeStyle = `hsl(${drawingGridColor})`;
       ctx.lineWidth = 1;
 
-      // verticais
       for (let x = 0; x <= g.width; x++) {
         const xPos = x * cellW;
         ctx.beginPath();
@@ -132,7 +169,6 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
         ctx.lineTo(xPos, g.height * cellH);
         ctx.stroke();
       }
-      // horizontais
       for (let y = 0; y <= g.height; y++) {
         const yPos = y * cellH;
         ctx.beginPath();
@@ -141,7 +177,6 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
         ctx.stroke();
       }
 
-      // pontos de referência da célula
       if (z >= 1) {
         ctx.fillStyle = `hsl(${brailleGridColor})`;
         for (let y = 0; y < g.height; y++) {
@@ -237,7 +272,6 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       }
     };
 
-    // util coords locais
     const getMousePosition = (event: React.MouseEvent<HTMLCanvasElement>) => {
       const canvas = canvasRef.current!;
       const rect = canvas.getBoundingClientRect();
@@ -247,9 +281,65 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       };
     };
 
-    // handlers
+    // CORREÇÃO 1: Função para determinar se deve iniciar seleção/drag
+    const shouldHandleSelectionOrDrag = (pos: { x: number; y: number }) => {
+      // Se não é ferramenta select, não maneja seleção
+      if (selectedTool !== "select") return false;
+
+      // Se há células selecionadas, verifica se clicou em uma delas
+      if (selection?.hasSelection) {
+        const cellX = Math.floor(pos.x / CELL_WIDTH);
+        const cellY = Math.floor(pos.y / CELL_HEIGHT);
+        const cellKey = `${cellX},${cellY}`;
+        
+        return selection.selectedCells.has(cellKey);
+      }
+
+      // Se não há seleção, sempre permite iniciar nova seleção
+      return true;
+    };
+
     const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+      console.log("🟡 [BrailleGrid] handleMouseDown chamado, ferramenta:", selectedTool);
       const pos = getMousePosition(e);
+
+      // CORREÇÃO 2: Priorizar seleção/drag quando apropriado
+      if (selectedTool === "select") {
+        const shouldHandleSelection = shouldHandleSelectionOrDrag(pos);
+        
+        if (shouldHandleSelection && selection?.hasSelection) {
+          // Se há seleção e clicou numa célula selecionada, tentar iniciar drag
+          const cellX = Math.floor(pos.x / CELL_WIDTH);
+          const cellY = Math.floor(pos.y / CELL_HEIGHT);
+          const cellKey = `${cellX},${cellY}`;
+          
+          if (selection.selectedCells.has(cellKey)) {
+            console.log("🔵 Tentando iniciar drag");
+            // Tentar iniciar drag através do selection hook
+            const dragStarted = selection.startDrag && selection.startDrag(pos.x, pos.y);
+            if (dragStarted) {
+              console.log("✅ Drag iniciado com sucesso");
+              e.stopPropagation();
+              return;
+            }
+          }
+        }
+        
+        // Se não iniciou drag, delegar para o DrawingArea (seleção)
+        console.log("🔵 Delegando para DrawingArea (seleção)");
+        onMouseDown(e);
+        return;
+      }
+
+      // CORREÇÃO 3: Sempre limpar seleção para outras ferramentas
+      if (selection?.hasSelection && selection.clearSelection) {
+        console.log("🔴 Limpando seleção - ferramenta não é select");
+        selection.clearSelection();
+        // Forçar re-render para garantir que a seleção visual suma
+        setTimeout(() => {
+          onSelectionChange?.(selection);
+        }, 0);
+      }
 
       if (selectedTool === "pencil" || selectedTool === "eraser") {
         startDrawing(pos.x, pos.y, selectedTool);
@@ -265,26 +355,65 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
         ) {
           onCellClick(cellX, cellY, e);
         }
-      } else if (selectedTool === "select") {
-        onMouseDown(e);
       }
     };
 
     const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+      // CORREÇÃO 4: Priorizar drag se está acontecendo
+      if (selectedTool === "select" && selection?.isDragging) {
+        const pos = getMousePosition(e);
+        console.log("🔵 Atualizando drag");
+        if (selection.updateDrag) {
+          selection.updateDrag(pos.x, pos.y);
+        }
+        e.stopPropagation();
+        return;
+      }
+      
       if ((selectedTool === "pencil" || selectedTool === "eraser") && isDrawing) {
         const pos = getMousePosition(e);
         continueDrawing(pos.x, pos.y, selectedTool);
         e.stopPropagation();
       } else if (selectedTool === "select") {
+        // Para a ferramenta select, delegamos para o DrawingArea
         onMouseMove(e);
       }
     };
 
     const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+      console.log("🟡 [BrailleGrid] handleMouseUp chamado, ferramenta:", selectedTool);
+      
+      // CORREÇÃO 5: Finalizar drag se estava acontecendo
+      if (selectedTool === "select" && selection?.isDragging) {
+        console.log("🔵 Finalizando drag");
+        if (selection.finishDrag) {
+          selection.finishDrag();
+        }
+        e.stopPropagation();
+        return;
+      }
+      
       if ((selectedTool === "pencil" || selectedTool === "eraser") && isDrawing) {
         finishDrawing();
         e.stopPropagation();
       } else if (selectedTool === "select") {
+        // Para select, só fazemos click em célula se NÃO estava selecionando (arraste)
+        if (!selection?.isSelecting && !selection?.isDragging) {
+          const pos = getMousePosition(e);
+          const cellX = Math.floor(pos.x / CELL_WIDTH);
+          const cellY = Math.floor(pos.y / CELL_HEIGHT);
+
+          if (
+            cellX >= 0 &&
+            cellX < grid.width &&
+            cellY >= 0 &&
+            cellY < grid.height
+          ) {
+            onCellClick(cellX, cellY, e);
+          }
+        }
+        
+        // Sempre delegamos para o DrawingArea para finalizar seleção
         onMouseUp(e);
       }
     };
@@ -293,6 +422,15 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       if ((selectedTool === "pencil" || selectedTool === "eraser") && isDrawing) {
         cancelDrawing();
       }
+      
+      // CORREÇÃO 6: Cancelar drag se sair do canvas
+      if (selectedTool === "select" && selection?.isDragging) {
+        console.log("🔴 Cancelando drag por mouse leave");
+        if (selection.cancelDrag) {
+          selection.cancelDrag();
+        }
+      }
+      
       if (selectedTool === "select") {
         onMouseLeave(e);
       }
@@ -321,67 +459,115 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
           }}
         />
 
-        {/* overlay da seleção */}
-        {(() => {
+        {/* CORREÇÃO 7: Visual melhorado para drag */}
+        {(function () {
           const hasSelectedCells = selection?.selectedCells?.size > 0;
           const selectingNow =
             selection?.isSelecting &&
             selection?.selectionStart &&
             selection?.selectionEnd;
-          return hasSelectedCells || selectingNow;
-        })() && (
-          <div className="absolute inset-0 pointer-events-none">
-            {selection.isSelecting &&
-            selection.selectionStart &&
-            selection.selectionEnd ? (
-              <div
-                className="border-2 border-yellow-400 bg-yellow-400/20 absolute"
-                style={{
-                  left: `${
-                    Math.min(selection.selectionStart.x, selection.selectionEnd.x) *
-                    CELL_WIDTH *
-                    zoom
-                  }px`,
-                  top: `${
-                    Math.min(selection.selectionStart.y, selection.selectionEnd.y) *
-                    CELL_HEIGHT *
-                    zoom
-                  }px`,
-                  width: `${
-                    Math.abs(
-                      selection.selectionEnd.x - selection.selectionStart.x + 1
-                    ) *
-                    CELL_WIDTH *
-                    zoom
-                  }px`,
-                  height: `${
-                    Math.abs(
-                      selection.selectionEnd.y - selection.selectionStart.y + 1
-                    ) *
-                    CELL_HEIGHT *
-                    zoom
-                  }px`,
-                }}
-              />
-            ) : (
-              Array.from(selection.selectedCells).map((key: string) => {
-                const [x, y] = key.split(",").map(Number);
-                return (
-                  <div
-                    key={key}
-                    className="border-2 border-yellow-400 bg-yellow-400/20 absolute"
-                    style={{
-                      left: `${x * CELL_WIDTH * zoom}px`,
-                      top: `${y * CELL_HEIGHT * zoom}px`,
-                      width: `${CELL_WIDTH * zoom}px`,
-                      height: `${CELL_HEIGHT * zoom}px`,
-                    }}
-                  />
-                );
-              })
-            )}
-          </div>
-        )}
+
+          const selectedSingleCell =
+            !selection?.isSelecting &&
+            selection?.selectedCells?.size === 1
+              ? String(Array.from(selection.selectedCells)[0])
+              : null;
+
+          const [onlyX, onlyY] = selectedSingleCell
+            ? selectedSingleCell.split(",").map(Number)
+            : [null, null];
+
+          console.log("🟨 brailleGrid - selection props:", {
+            isSelecting: selection?.isSelecting,
+            start: selection?.selectionStart,
+            end: selection?.selectionEnd,
+            selectedCells: selection?.selectedCells,
+            isDragging: selection?.isDragging,
+          });
+
+          return (hasSelectedCells || selectingNow || selectedSingleCell) && (
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Overlay durante seleção por arraste */}
+              {selection?.isSelecting &&
+              selection?.selectionStart &&
+              selection?.selectionEnd ? (
+                <div
+                  className="border-2 border-yellow-400 bg-yellow-400/20 absolute"
+                  style={{
+                    left: `${
+                      Math.min(
+                        selection.selectionStart.x,
+                        selection.selectionEnd.x
+                      ) * CELL_WIDTH * zoom
+                    }px`,
+                    top: `${
+                      Math.min(
+                        selection.selectionStart.y,
+                        selection.selectionEnd.y
+                      ) * CELL_HEIGHT * zoom
+                    }px`,
+                    width: `${
+                      Math.abs(
+                        selection.selectionEnd.x - selection.selectionStart.x + 1
+                      ) * CELL_WIDTH * zoom
+                    }px`,
+                    height: `${
+                      Math.abs(
+                        selection.selectionEnd.y - selection.selectionStart.y + 1
+                      ) * CELL_HEIGHT * zoom
+                    }px`,
+                  }}
+                />
+              ) : null}
+
+              {/* Células selecionadas normais */}
+              {!selection?.isDragging && selection?.selectedCells?.size > 0 &&
+                Array.from(selection.selectedCells).map((key: string) => {
+                  const [x, y] = key.split(",").map(Number);
+                  return (
+                    <div
+                      key={key}
+                      className="border-2 border-yellow-400 bg-yellow-400/20 absolute"
+                      style={{
+                        left: `${x * CELL_WIDTH * zoom}px`,
+                        top: `${y * CELL_HEIGHT * zoom}px`,
+                        width: `${CELL_WIDTH * zoom}px`,
+                        height: `${CELL_HEIGHT * zoom}px`,
+                      }}
+                    />
+                  );
+                })}
+
+              {/* Preview durante drag */}
+              {selection?.isDragging && selection?.dragOffset && selection?.selectedCells &&
+                Array.from(selection.selectedCells).map((key: string) => {
+                  const [x, y] = key.split(",").map(Number);
+                  const newX = x + selection.dragOffset.x;
+                  const newY = y + selection.dragOffset.y;
+                  
+                  // Verificar se a nova posição é válida
+                  const isValid = newX >= 0 && newX < grid.width && newY >= 0 && newY < grid.height;
+                  
+                  return (
+                    <div
+                      key={`drag-${key}`}
+                      className={`absolute border-2 ${
+                        isValid 
+                          ? 'border-gray-400 bg-gray-300' 
+                          : 'border-gray-500 bg-gray-400'
+                      } bg-opacity-40`}
+                      style={{
+                        left: `${newX * CELL_WIDTH * zoom}px`,
+                        top: `${newY * CELL_HEIGHT * zoom}px`,
+                        width: `${CELL_WIDTH * zoom}px`,
+                        height: `${CELL_HEIGHT * zoom}px`,
+                      }}
+                    />
+                  );
+                })}
+            </div>
+          );
+        })()}
       </div>
     );
   }

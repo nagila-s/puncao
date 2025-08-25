@@ -31,6 +31,117 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
 
   const getCellKey = (x: number, y: number) => `${x},${y}`;
 
+  // CORREÇÃO 1: Função melhorada para iniciar seleção
+  const startSelection = useCallback((x: number, y: number, addToSelection = false) => {
+    const cellX = Math.floor(x / CELL_WIDTH);
+    const cellY = Math.floor(y / CELL_HEIGHT);
+    
+    console.log('Starting selection at:', { cellX, cellY, addToSelection });
+    
+    if (cellX >= 0 && cellX < grid.width && cellY >= 0 && cellY < grid.height) {
+      // Se não está adicionando à seleção existente, limpa a seleção anterior
+      if (!addToSelection) {
+        setSelectedCells(new Set());
+      }
+      
+      setSelectionStart({ x: cellX, y: cellY });
+      setSelectionEnd({ x: cellX, y: cellY });
+      setIsSelecting(true);
+      
+      // Adiciona a célula inicial à seleção
+      const cellKey = getCellKey(cellX, cellY);
+      setSelectedCells(prev => {
+        const newSet = new Set(addToSelection ? prev : []);
+        newSet.add(cellKey);
+        return newSet;
+      });
+    }
+  }, [grid.width, grid.height]);
+
+  // CORREÇÃO 2: Função melhorada para atualizar seleção
+  const updateSelection = useCallback((x: number, y: number) => {
+    if (!isSelecting || !selectionStart) {
+      console.log('Not selecting or no selection start');
+      return;
+    }
+    
+    const cellX = Math.max(0, Math.min(grid.width - 1, Math.floor(x / CELL_WIDTH)));
+    const cellY = Math.max(0, Math.min(grid.height - 1, Math.floor(y / CELL_HEIGHT)));
+    
+    console.log('Updating selection to:', { cellX, cellY });
+    
+    setSelectionEnd({ x: cellX, y: cellY });
+    
+    // Atualiza células selecionadas com base na área retangular
+    const newSelectedCells = new Set<string>();
+    const minX = Math.min(selectionStart.x, cellX);
+    const maxX = Math.max(selectionStart.x, cellX);
+    const minY = Math.min(selectionStart.y, cellY);
+    const maxY = Math.max(selectionStart.y, cellY);
+    
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        newSelectedCells.add(getCellKey(x, y));
+      }
+    }
+    
+    console.log('Selected cells:', newSelectedCells.size);
+    setSelectedCells(newSelectedCells);
+  }, [isSelecting, selectionStart, grid.width, grid.height]);
+
+  // CORREÇÃO 3: Função melhorada para finalizar seleção
+  const finishSelection = useCallback(() => {
+    console.log('Finishing selection, selected cells:', selectedCells.size);
+    setIsSelecting(false);
+    // Mantém as células selecionadas após finalizar
+    // Se nenhuma célula foi selecionada, limpa a seleção
+    if (selectedCells.size === 0) {
+      setSelectionStart(null);
+      setSelectionEnd(null);
+    }
+  }, [selectedCells.size]);
+
+  // CORREÇÃO 4: Função melhorada para limpar seleção
+  const clearSelection = useCallback(() => {
+    console.log('Clearing selection');
+    setSelectedCells(new Set());
+    setIsSelecting(false);
+    setSelectionStart(null);
+    setSelectionEnd(null);
+  }, []);
+
+  // CORREÇÃO 5: Função melhorada para selecionar célula individual
+  const selectCell = useCallback((x: number, y: number, addToSelection = false) => {
+    console.log('Selecting cell:', { x, y, addToSelection });
+    
+    if (x < 0 || x >= grid.width || y < 0 || y >= grid.height) {
+      console.log('Cell out of bounds');
+      return;
+    }
+    
+    const cellKey = getCellKey(x, y);
+    
+    if (addToSelection) {
+      setSelectedCells(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(cellKey)) {
+          newSet.delete(cellKey);
+        } else {
+          newSet.add(cellKey);
+        }
+        console.log('Toggle cell selection, new size:', newSet.size);
+        return newSet;
+      });
+    } else {
+      console.log('Single cell selection');
+      setSelectedCells(new Set([cellKey]));
+      // Limpa estados de seleção de área
+      setIsSelecting(false);
+      setSelectionStart(null);
+      setSelectionEnd(null);
+    }
+  }, [grid.width, grid.height]);
+
   // Função para mover seleção com setas direcionais
   const moveSelection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
     if (selectedCells.size === 0) return;
@@ -134,19 +245,19 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
     
     if (!selectedCells.has(cellKey)) {
       console.log('Click not on selected cell, cannot start drag');
-      return;
+      return false; // Retorna false para indicar que não iniciou o drag
     }
     
     console.log('Starting drag from cell:', { cellX, cellY });
     setIsDragging(true);
     setDragStart({ x: cellX, y: cellY });
     setDragOffset({ x: 0, y: 0 });
+    return true; // Retorna true para indicar que iniciou o drag
   }, [selectedCells]);
 
   // Função para atualizar drag & drop
   const updateDrag = useCallback((x: number, y: number) => {
     if (!isDragging || !dragStart) {
-      console.log('Not dragging or no drag start, ignoring updateDrag');
       return;
     }
     
@@ -156,7 +267,6 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
     const deltaX = cellX - dragStart.x;
     const deltaY = cellY - dragStart.y;
     
-    console.log('Updating drag:', { cellX, cellY, deltaX, deltaY });
     setDragOffset({ x: deltaX, y: deltaY });
   }, [isDragging, dragStart]);
 
@@ -164,23 +274,23 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
   const finishDrag = useCallback(() => {
     console.log('finishDrag called, isDragging:', isDragging, 'dragOffset:', dragOffset);
     
-    // Sempre resetar o estado de drag primeiro
+    if (!isDragging || !dragOffset) {
+      // Sempre resetar o estado de drag
+      setIsDragging(false);
+      setDragStart(null);
+      setDragOffset(null);
+      return;
+    }
+    
+    const { x: deltaX, y: deltaY } = dragOffset;
+    
+    // Resetar estado de drag primeiro
     setIsDragging(false);
     setDragStart(null);
     setDragOffset(null);
     
-    if (!isDragging) {
-      console.log('Not dragging, nothing to finish');
-      return;
-    }
-    
-    const { x: deltaX, y: deltaY } = dragOffset || { x: 0, y: 0 };
-    
-    console.log('Drag finished with offset:', { deltaX, deltaY });
-    
     if (deltaX === 0 && deltaY === 0) {
-      // Sem movimento, apenas finalizar drag
-      console.log('No movement detected, just finishing drag');
+      console.log('No movement detected');
       return;
     }
 
@@ -201,7 +311,6 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
     const newMaxY = maxY + deltaY;
 
     if (newMinX < 0 || newMaxX >= grid.width || newMinY < 0 || newMaxY >= grid.height) {
-      // Movimento não é possível, apenas finalizar drag
       console.log('Movement not possible, cancelling drag');
       return;
     }
@@ -253,82 +362,20 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
 
   // Função para cancelar drag & drop
   const cancelDrag = useCallback(() => {
-    console.log('cancelDrag called, isDragging:', isDragging);
-    
-    // Sempre resetar o estado de drag
+    console.log('cancelDrag called');
     setIsDragging(false);
     setDragStart(null);
     setDragOffset(null);
-    
-    console.log('Drag cancelled');
-  }, [isDragging]);
-
-  const startSelection = useCallback((x: number, y: number) => {
-    const cellX = Math.floor(x / CELL_WIDTH);
-    const cellY = Math.floor(y / CELL_HEIGHT);
-    
-    if (cellX >= 0 && cellX < grid.width && cellY >= 0 && cellY < grid.height) {
-      setSelectionStart({ x: cellX, y: cellY });
-      setSelectionEnd({ x: cellX, y: cellY });
-      setIsSelecting(true);
-      setSelectedCells(new Set()); // Limpa seleção anterior
-    }
-  }, [grid]);
-
-  const updateSelection = useCallback((x: number, y: number) => {
-    if (!isSelecting || !selectionStart) return;
-    
-    const cellX = Math.max(0, Math.min(grid.width - 1, Math.floor(x / CELL_WIDTH)));
-    const cellY = Math.max(0, Math.min(grid.height - 1, Math.floor(y / CELL_HEIGHT)));
-    
-    setSelectionEnd({ x: cellX, y: cellY });
-    
-    // Atualiza células selecionadas com base na área retangular
-    const newSelectedCells = new Set<string>();
-    const minX = Math.min(selectionStart.x, cellX);
-    const maxX = Math.max(selectionStart.x, cellX);
-    const minY = Math.min(selectionStart.y, cellY);
-    const maxY = Math.max(selectionStart.y, cellY);
-    
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        newSelectedCells.add(`${x},${y}`);
-      }
-    }
-    
-    setSelectedCells(newSelectedCells);
-  }, [isSelecting, selectionStart, grid]);
-
-  const finishSelection = useCallback(() => {
-    setIsSelecting(false);
-    // Mantém as células selecionadas após finalizar
   }, []);
 
-  const clearSelection = useCallback(() => {
-    setSelectedCells(new Set());
-    setIsSelecting(false);
-    setSelectionStart(null);
-  }, []);
-
-  const selectCell = useCallback((x: number, y: number, addToSelection = false) => {
-    const cellKey = getCellKey(x, y);
-    if (addToSelection) {
-      setSelectedCells(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(cellKey)) {
-          newSet.delete(cellKey);
-        } else {
-          newSet.add(cellKey);
-        }
-        return newSet;
-      });
-    } else {
-      setSelectedCells(new Set([cellKey]));
-    }
-  }, []);
-
+  // CORREÇÃO 6: Função melhorada para copiar células
   const copySelectedCells = useCallback(() => {
-    if (selectedCells.size === 0) return;
+    console.log('Copying selected cells, count:', selectedCells.size);
+    
+    if (selectedCells.size === 0) {
+      console.log('No cells selected to copy');
+      return;
+    }
 
     const cellCoords = Array.from(selectedCells).map(key => {
       const [x, y] = key.split(',').map(Number);
@@ -343,6 +390,8 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
     const width = maxX - minX + 1;
     const height = maxY - minY + 1;
     const cells: (BrailleCell & { origin?: 'manual' | 'automatic' })[][] = [];
+
+    console.log('Copying area:', { minX, minY, width, height });
 
     for (let y = 0; y < height; y++) {
       cells[y] = [];
@@ -365,7 +414,9 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
       }
     }
 
-    setClipboard({ cells, width, height });
+    const clipboardData = { cells, width, height };
+    setClipboard(clipboardData);
+    console.log('Copied to clipboard:', clipboardData);
   }, [selectedCells, grid.cells]);
 
   const cutSelectedCells = useCallback(() => {
@@ -390,7 +441,12 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
   }, [copySelectedCells, selectedCells, grid, onGridChange, clearSelection]);
 
   const pasteClipboard = useCallback((targetX: number, targetY: number) => {
-    if (!clipboard) return;
+    if (!clipboard) {
+      console.log('No clipboard data to paste');
+      return;
+    }
+
+    console.log('Pasting clipboard at:', { targetX, targetY }, 'clipboard size:', clipboard.width, 'x', clipboard.height);
 
     const newGrid = JSON.parse(JSON.stringify(grid));
     
@@ -415,6 +471,8 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
   }, [clipboard, grid, onGridChange]);
 
   const deleteSelectedCells = useCallback(() => {
+    console.log('Deleting selected cells:', selectedCells.size);
+    
     const newGrid = JSON.parse(JSON.stringify(grid));
     selectedCells.forEach(cellKey => {
       const [x, y] = cellKey.split(',').map(Number);

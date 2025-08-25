@@ -65,10 +65,6 @@ export const BrailleEditor = () => {
     }
   }, [history, historyIndex]);
 
-  const handleToolChange = useCallback((tool: Tool) => {
-    setSelectedTool(tool);
-  }, []);
-
   const handleResolutionChange = useCallback((resolution: { width: number; height: number; label: string }) => {
     // width = caracteres, height = linhas
     const newGrid = createEmptyGrid(resolution.width, resolution.height);
@@ -98,6 +94,15 @@ export const BrailleEditor = () => {
   const selection = useSelection(grid, handleGridChange);
   const textOverlay = useTextOverlay();
   const shapes = useShapes(grid, handleGridChange);
+
+  const handleToolChange = useCallback((tool: Tool) => {
+    if (selection.isSelecting) {
+      console.log("🚫 tentativa de trocar ferramenta durante seleção");
+      return;
+    }
+    console.log("🛠️ ferramenta alterada para:", tool);
+    setSelectedTool(tool);
+  }, [selection.isSelecting]);
 
   const [isShiftPressed, setIsShiftPressed] = useState(false);
 
@@ -153,8 +158,8 @@ export const BrailleEditor = () => {
       // Atualiza visual de células ativas
       setGrid(prevGrid => {
         const newGrid = JSON.parse(JSON.stringify(prevGrid));
-        for (let row of newGrid.cells) {
-          for (let cell of row) {
+        for (const row of newGrid.cells) {
+          for (const cell of row) {
             cell.isActive = false;
           }
         }
@@ -201,6 +206,7 @@ export const BrailleEditor = () => {
 
     // Cursor de seleção (uma única célula)
     if (selection.selectedCells.size !== 1) return;
+
     const cellKey = Array.from(selection.selectedCells)[0];
     const [currentX, currentY] = cellKey.split(',').map(Number);
 
@@ -208,10 +214,18 @@ export const BrailleEditor = () => {
     let newY = currentY;
 
     switch (direction) {
-      case 'up': newY = Math.max(0, currentY - 1); break;
-      case 'down': newY = Math.min(grid.height - 1, currentY + 1); break;
-      case 'left': newX = Math.max(0, currentX - 1); break;
-      case 'right': newX = Math.min(grid.width - 1, currentX + 1); break;
+      case 'up':
+        newY = Math.max(0, currentY - 1);
+        break;
+      case 'down':
+        newY = Math.min(grid.height - 1, currentY + 1);
+        break;
+      case 'left':
+        newX = Math.max(0, currentX - 1);
+        break;
+      case 'right':
+        newX = Math.min(grid.width - 1, currentX + 1);
+        break;
     }
 
     if (newX !== currentX || newY !== currentY) {
@@ -250,7 +264,6 @@ export const BrailleEditor = () => {
       }
       const textContent = lines.join('\n');
       await navigator.clipboard.writeText(textContent);
-
       toast({
         title: "Figura copiada",
         description: "Conteúdo em letras copiado para a área de transferência",
@@ -298,6 +311,7 @@ export const BrailleEditor = () => {
         setShowDebug(prev => !prev);
       }
     };
+
     document.addEventListener('keydown', handleDebugKey);
     return () => document.removeEventListener('keydown', handleDebugKey);
   }, []);
@@ -311,6 +325,7 @@ export const BrailleEditor = () => {
     isShiftPressed,
     selectedTool
   };
+
   console.log('Debug info:', debugInfo);
 
   return (
@@ -352,14 +367,16 @@ export const BrailleEditor = () => {
               onCellClick={handleCellClick}
               onGridChange={handleGridChange}
               onToggleLetters={handleToggleView}
-              onInsertText={handleInsertText}  // <- grava texto no grid
+              onInsertText={handleInsertText}
+              onSelectionChange={(selection) => {
+                console.log('🔶 nova seleção:', selection);
+              }}
             />
           </main>
         </div>
 
         {/* Modals */}
         {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
-
         {editingCell && (
           <CellEditor
             cell={editingCell}
