@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Copy as CopyIcon } from "lucide-react";
 import type { BrailleGrid } from "@/types/braille";
-import { gridToLetters, textToAnsiBytes } from "@/lib/encoding";
+import { gridToLetters } from "@/lib/encoding";
 import { useToast } from "@/hooks/use-toast";
 
 type CopyLettersProps = {
@@ -14,16 +14,9 @@ export function CopyLetters({ grid }: CopyLettersProps) {
 
    const handleCopy = useCallback(async () => {
     try {
-      // Gera texto com CRLF, que funciona bem em Bloco de Notas/Windows e ajuda na embosser
+    
       const text = gridToLetters(grid, "\r\n");
-      const bytes = textToAnsiBytes(text);
-      const blob = new Blob([bytes.buffer], {
-      type: "text/plain;charset=windows-1252",
-      });
-
-      await navigator.clipboard.write([
-        new ClipboardItem({ "text/plain": blob }),
-      ]);
+      await navigator.clipboard.writeText(text);
 
       toast({
         title: "Copiado",
