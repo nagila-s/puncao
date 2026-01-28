@@ -5,9 +5,17 @@
 // - downloadAnsiTxt: dispara download do .txt
 
 import type { BrailleGrid } from "@/types/braille";
+import { digitToLetter } from "@/lib/brailleMappings";
+
+/** Dígito 0–9 vira letra (0→j, 1→a, …); resto passa igual. Na cópia nunca sai dígito. */
+function toLetterIfDigit(ch: string): string {
+  return digitToLetter[ch] ?? ch;
+}
 
 /**
- * Converte a grade em linhas de texto (preserva espaços dentro das linhas).
+ * Converte a grade em linhas de texto, célula a célula.
+ * Usa cell.letter (número inserido via texto já fica "#" + letra na grade).
+ * Se tiver dígito em cell.letter, vira letra (nunca copia número como dígito).
  * EOL padrão: LF (\n)
  */
 export function gridToLetters(
@@ -21,7 +29,7 @@ export function gridToLetters(
     for (let x = 0; x < grid.width; x++) {
       const cell = grid.cells[y][x];
       const ch = cell?.letter && cell.letter.length ? cell.letter : " ";
-      line += ch;
+      line += toLetterIfDigit(ch);
     }
     lines.push(line);
   }

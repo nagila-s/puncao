@@ -14,7 +14,7 @@ Este projeto está licenciado sob a [Creative Commons Atribuição-Compartilhame
 - Seleção de células com copiar, recortar e colar.
 - Desfazer e refazer alterações.
 - Zoom e ajuste de resolução da grade.
-- Sobreposição de textos que podem ser movidos ou editados.
+- Texto na grade pode ser movido (selecionando e arrastando as células) e editado.
 - Modal de ajuda com atalhos de teclado.
 
 ## Instalação

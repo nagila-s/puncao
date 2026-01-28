@@ -100,9 +100,6 @@ Auxiliar de desenho para formas (linhas, retângulos, círculos, triângulos) e 
 src/hooks/useTextInsertion.ts  
 Insere texto na grade convertendo caracteres em padrões de braille.
 
-src/hooks/useTextOverlay.ts  
-Mantém elementos de sobreposição de texto arrastáveis que podem ser editados ou excluídos.
-
 *Componentes de UI*
 
 src/components/ui/button.tsx, input.tsx  
@@ -126,13 +123,10 @@ src/components/Canvas/BrailleGrid.tsx
 Componente de renderização do canvas. Desenha a grade de braille, letras ou pontos, e trata eventos de mouse para desenho e seleção.
 
 src/components/Canvas/DrawingArea.tsx  
-Envolve o BrailleGrid com controles de zoom, resolução e sobreposições de texto.
+Envolve o BrailleGrid com controles de zoom e resolução.
 
 src/components/CellEditor/CellEditor.tsx  
 Modal para editar manualmente uma única célula de braille (letra e posições dos pontos).
-
-src/components/TextOverlay/TextElement.tsx  
-Componente de sobreposição de texto arrastável que pode renderizar texto em braille, ser editado ou excluído.
 
 src/components/Controls/CopyLetters.tsx  
 Copia letras da grade para o clipboard usando sistema de toast para feedback.
@@ -168,5 +162,5 @@ Configurações do TypeScript.
 
 *Resumo*
 
-No total, esses arquivos formam um app web React/TypeScript para desenhar caracteres em braille em uma grade, com ferramentas de formas, sobreposições de texto, seleção e clipboard, sidebar UI e notificações toast. Os arquivos de configuração definem TypeScript, Vite, Tailwind, ESLint e shadcn UI. A pasta public armazena imagens, enquanto index.html e src/main.tsx iniciam a aplicação. O diretório .git contém o histórico de controle de versão. esses são todos os arquivos do repositório.
+No total, esses arquivos formam um app web React/TypeScript para desenhar caracteres em braille em uma grade, com ferramentas de formas, seleção e clipboard, sidebar UI e notificações toast. Os arquivos de configuração definem TypeScript, Vite, Tailwind, ESLint e shadcn UI. A pasta public armazena imagens, enquanto index.html e src/main.tsx iniciam a aplicação. O diretório .git contém o histórico de controle de versão. esses são todos os arquivos do repositório.
 

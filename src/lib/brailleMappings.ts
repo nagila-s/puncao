@@ -109,6 +109,12 @@ export const brailleIndicators = {
   NUMBER: [3, 4, 5, 6],       // indicador numérico
 };
 
+/** Em Braille, número = sinal + letra a–j (1=a, 2=b, … 0=j). Mapeamento dígito → letra (inserção e cópia). */
+export const digitToLetter: Record<string, string> = {
+  "0": "j", "1": "a", "2": "b", "3": "c", "4": "d",
+  "5": "e", "6": "f", "7": "g", "8": "h", "9": "i",
+};
+
 // Converte pontos braille para matriz 3x2 (usado para visualização)
 export const dotsToMatrix = (dots: number[]): boolean[][] => {
   const matrix = [
