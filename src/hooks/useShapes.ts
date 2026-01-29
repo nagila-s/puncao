@@ -152,9 +152,9 @@ export const useShapes = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid) =
     
     const startCell = newGrid.cells[startY][startX];
     console.log('floodFill: startCell:', startCell);
-    const originalDots = JSON.stringify(startCell.dots.sort());
+    const originalDots = JSON.stringify([...startCell.dots].sort());
     const fillPattern = [1, 2, 3, 4, 5, 6]; // Preenche com todos os pontos
-    const targetDots = JSON.stringify(fillPattern.sort());
+    const targetDots = JSON.stringify([...fillPattern].sort());
     
     console.log('floodFill: originalDots:', originalDots, 'targetDots:', targetDots);
     
@@ -178,7 +178,7 @@ export const useShapes = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid) =
       if (x < 0 || x >= newGrid.width || y < 0 || y >= newGrid.height) continue;
       
       const currentCell = newGrid.cells[y][x];
-      const currentDots = JSON.stringify(currentCell.dots.sort());
+      const currentDots = JSON.stringify([...currentCell.dots].sort());
       
       // Se não é igual ao padrão original, para (encontrou uma "parede")
       if (currentDots !== originalDots) continue;
