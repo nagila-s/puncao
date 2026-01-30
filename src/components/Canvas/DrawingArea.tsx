@@ -13,7 +13,6 @@ interface DrawingAreaProps {
   selectedTool: string;
   showLetters?: boolean;
   selection?: any;
-  textOverlay?: any;
   hasClipboard?: boolean;
   onZoomChange: (zoom: number) => void;
   onResolutionChange: (resolution: { width: number; height: number; label: string }) => void;
@@ -41,7 +40,6 @@ export const DrawingArea = ({
   selectedTool,
   showLetters: propShowLetters,
   selection,
-  textOverlay,
   hasClipboard = false,
   onZoomChange,
   onResolutionChange,
@@ -238,10 +236,6 @@ export const DrawingArea = ({
               />
             </div>
           )}
-
-          {textOverlay?.textElements?.map((element: any) => (
-            <div key={element.id} />
-          ))}
         </div>
       </div>
 

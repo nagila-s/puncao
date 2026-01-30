@@ -64,6 +64,19 @@ export const letterToBraillePattern: Record<string, number[]> = {
   'ü': [1, 2, 5, 6],            // u com trema
   'ï': [1, 2, 4, 5, 6],            // u com trema
 
+  // NÚMEROS (mesmos pontos que a–j: 1=a, 2=b, …, 0=j). Só usados na inserção via caixa de texto.
+  // Na grade/cópia/export é sempre # + letra; nunca se mostra nem copia dígito.
+  '1': [1],
+  '2': [1, 2],
+  '3': [1, 4],
+  '4': [1, 4, 5],
+  '5': [1, 5],
+  '6': [1, 2, 4],
+  '7': [1, 2, 4, 5],
+  '8': [1, 2, 5],
+  '9': [2, 4],
+  '0': [2, 4, 5],
+
   // PONTUAÇÕES E SÍMBOLOS
   ' ': [],                   // espaço vazio
   '.': [3],                  // ponto final
@@ -107,6 +120,15 @@ export const uppercaseMapping: Record<string, string> = {
 export const brailleIndicators = {
   UPPERCASE: [4, 6],          // indicador de letra maiúscula
   NUMBER: [3, 4, 5, 6],       // indicador numérico
+};
+
+/**
+ * Número só é mapeado na inserção via caixa de texto. Na grade vira sempre "#" + letra (ex.: 6 → #f).
+ * Nunca se mostra nem copia nem exporta dígito; ver letras / copiar / exportar = sempre letra (ou # + letra).
+ */
+export const digitToLetter: Record<string, string> = {
+  "0": "j", "1": "a", "2": "b", "3": "c", "4": "d",
+  "5": "e", "6": "f", "7": "g", "8": "h", "9": "i",
 };
 
 // Converte pontos braille para matriz 3x2 (usado para visualização)

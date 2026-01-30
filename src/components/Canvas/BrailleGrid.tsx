@@ -6,6 +6,7 @@ import React, {
 } from "react";
 import { BrailleGrid as BrailleGridType } from "@/types/braille";
 import { useDrawing } from "@/hooks/useDrawing";
+import { digitToLetter } from "@/lib/brailleMappings";
 
 export interface BrailleGridProps {
   grid: BrailleGridType;
@@ -140,7 +141,8 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
           if (!cell) continue;
 
           if (showLetters && cell.letter && cell.letter !== " ") {
-            drawLetter(ctx, cell, x, y, scaledCellW, scaledCellH, zoom);
+            const ch = cell.letter >= "0" && cell.letter <= "9" ? digitToLetter[cell.letter] : cell.letter;
+            drawLetter(ctx, { ...cell, letter: ch }, x, y, scaledCellW, scaledCellH, zoom);
           } else if (cell.dots.length > 0) {
             drawDots(ctx, cell, x, y, scaledCellW, scaledCellH, zoom);
           }

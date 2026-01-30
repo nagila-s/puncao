@@ -7,11 +7,11 @@ import { HelpModal } from '@/components/HelpModal/HelpModal';
 import { Tool, BrailleGrid, BrailleCell } from '@/types/braille';
 import { useSelection } from '@/hooks/useSelection';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { useTextOverlay } from '@/hooks/useTextOverlay';
 import { useShapes } from '@/hooks/useShapes';
 import { useToast } from '@/hooks/use-toast';
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { writeTextToGrid } from '@/lib/textPlacement';
+import { gridToLetters } from '@/lib/encoding';
 
 const createEmptyGrid = (characters: number, lines: number): BrailleGrid => {
   const cells: BrailleCell[][] = [];
@@ -90,9 +90,8 @@ export const BrailleEditor = () => {
     setEditingCell(cell);
   }, [grid]);
 
-  // Selection / overlay / shapes
+  // Selection / shapes
   const selection = useSelection(grid, handleGridChange);
-  const textOverlay = useTextOverlay();
   const shapes = useShapes(grid, handleGridChange);
 
   const handleToolChange = useCallback((tool: Tool) => {
@@ -249,20 +248,10 @@ export const BrailleEditor = () => {
     }
   }, [selection]);
 
-  // Copiar letras da grade
+  // Copiar letras da grade (sempre em letras, nunca dígito; número na grade = "#" + letra)
   const handleCopyLetters = useCallback(async () => {
     try {
-      const lines: string[] = [];
-      for (let y = 0; y < grid.height; y++) {
-        let line = '';
-        for (let x = 0; x < grid.width; x++) {
-          const cell = grid.cells[y][x];
-          const letter = cell.letter && cell.letter !== ' ' ? cell.letter : ' ';
-          line += letter;
-        }
-        lines.push(line);
-      }
-      const textContent = lines.join('\n');
+      const textContent = gridToLetters(grid, '\n');
       await navigator.clipboard.writeText(textContent);
       toast({
         title: "Figura copiada",
@@ -286,13 +275,7 @@ export const BrailleEditor = () => {
     onCopy: selection.copySelectedCells,
     onPaste: handlePasteAtCursor,
     onCut: selection.cutSelectedCells,
-    onDelete: () => {
-      if (textOverlay.selectedElementId) {
-        textOverlay.deleteSelected();
-      } else {
-        selection.deleteSelectedCells();
-      }
-    },
+    onDelete: selection.deleteSelectedCells,
     onToggleView: handleToggleView,
     onMoveSelection: handleMoveSelection,
     onEnterEdit: handleEnterEdit,
@@ -361,7 +344,6 @@ export const BrailleEditor = () => {
               selectedTool={selectedTool}
               showLetters={showLetters}
               selection={selection}
-              textOverlay={textOverlay}
               onZoomChange={setZoom}
               onResolutionChange={handleResolutionChange}
               onCellClick={handleCellClick}
