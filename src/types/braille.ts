@@ -31,7 +31,8 @@ export type Tool =
   | 'triangle'
   | 'fill'
   | 'text'
-  | 'import';
+  | 'import'
+  | 'image_import';
 
 export interface ZoomLevel {
   value: number;

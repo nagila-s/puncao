@@ -261,13 +261,13 @@ export function AppSidebar({
             <Divider />
           </div>
 
-          {/* Import (feature off) / Copiar (contexto) */}
+          {/* Importar imagem / Copiar */}
           <div className="space-y-1">
             <div className="grid grid-cols-2 gap-x-1.5 gap-y-1.5 w-max mx-auto justify-items-center">
               <ToolBtn
-                disabled
-                featureOff
-                title="Importar (em breve)"
+                isActive={selectedTool === 'image_import'}
+                title="Importar imagem"
+                onClick={() => onToolChange('image_import' as Tool)}
               >
                 <Upload size={16} />
               </ToolBtn>

@@ -4,6 +4,7 @@ import { AppSidebar } from '@/components/Sidebar/AppSidebar';
 import { DrawingArea } from '@/components/Canvas/DrawingArea';
 import { CellEditor } from '@/components/CellEditor/CellEditor';
 import { HelpModal } from '@/components/HelpModal/HelpModal';
+import { ImageImportModal } from '@/components/ImageImportModal/ImageImportModal';
 import { Tool, BrailleGrid, BrailleCell } from '@/types/braille';
 import { useSelection } from '@/hooks/useSelection';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -32,6 +33,7 @@ const createEmptyGrid = (characters: number, lines: number): BrailleGrid => {
 
 export const BrailleEditor = () => {
   const [selectedTool, setSelectedTool] = useState<Tool>('pencil');
+  const [toolBeforeImageImport, setToolBeforeImageImport] = useState<Tool>('pencil');
   const [zoom, setZoom] = useState(1);
   const [grid, setGrid] = useState<BrailleGrid>(() => createEmptyGrid(34, 28)); // 34 caracteres, 28 linhas
   const [history, setHistory] = useState<BrailleGrid[]>([]);
@@ -99,9 +101,12 @@ export const BrailleEditor = () => {
       console.log("🚫 tentativa de trocar ferramenta durante seleção");
       return;
     }
+    if (tool === 'image_import') {
+      setToolBeforeImageImport(selectedTool);
+    }
     console.log("🛠️ ferramenta alterada para:", tool);
     setSelectedTool(tool);
-  }, [selection.isSelecting]);
+  }, [selection.isSelecting, selectedTool]);
 
   const [isShiftPressed, setIsShiftPressed] = useState(false);
 
@@ -359,6 +364,18 @@ export const BrailleEditor = () => {
 
         {/* Modals */}
         {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+        {selectedTool === 'image_import' && (
+          <ImageImportModal
+            gridWidth={grid.width}
+            gridHeight={grid.height}
+            onApply={(newGrid) => {
+              setGrid(newGrid);
+              addToHistory(newGrid);
+              setSelectedTool(toolBeforeImageImport);
+            }}
+            onClose={() => setSelectedTool(toolBeforeImageImport)}
+          />
+        )}
         {editingCell && (
           <CellEditor
             cell={editingCell}
