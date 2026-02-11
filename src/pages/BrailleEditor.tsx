@@ -8,7 +8,7 @@ import { ImageImportModal } from '@/components/ImageImportModal/ImageImportModal
 import { Tool, BrailleGrid, BrailleCell } from '@/types/braille';
 import { useSelection } from '@/hooks/useSelection';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { useShapes } from '@/hooks/useShapes';
+import { useShapes, isShapeTool } from '@/hooks/useShapes';
 import { useToast } from '@/hooks/use-toast';
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { writeTextToGrid } from '@/lib/textPlacement';
@@ -244,6 +244,48 @@ export const BrailleEditor = () => {
     }
   }, [grid, toast]);
 
+  // ── Teclado para formas: Enter confirma, Esc cancela ──
+  // Registado ANTES do useKeyboardShortcuts para ter prioridade na fase capture.
+  useEffect(() => {
+    const handleShapeKeyDown = (e: KeyboardEvent) => {
+      if (!shapes.isPlacingShape) return;
+
+      // Não roubar Enter/Esc de inputs, textareas ou modais abertos
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.contentEditable === 'true' ||
+        target.closest('[role="dialog"]')
+      ) {
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopImmediatePropagation(); // impede que o handler genérico processe
+        const newGrid = shapes.confirmShape();
+        if (newGrid) {
+          handleGridChange(newGrid);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        shapes.cancelShape();
+      }
+    };
+
+    document.addEventListener('keydown', handleShapeKeyDown, true); // capture
+    return () => document.removeEventListener('keydown', handleShapeKeyDown, true);
+  }, [shapes.isPlacingShape, shapes.confirmShape, shapes.cancelShape, handleGridChange]);
+
+  // Cancelar forma ao mudar de ferramenta
+  useEffect(() => {
+    if (!isShapeTool(selectedTool) && shapes.isPlacingShape) {
+      shapes.cancelShape();
+    }
+  }, [selectedTool, shapes.isPlacingShape, shapes.cancelShape]);
+
   // Atalhos de teclado
   useKeyboardShortcuts({
     onUndo: handleUndo,
@@ -316,6 +358,7 @@ export const BrailleEditor = () => {
               onToggleLetters={handleToggleView}
               onInsertText={handleInsertText}
               onSelectionChange={() => {}}
+              shapes={shapes}
             />
           </main>
         </div>

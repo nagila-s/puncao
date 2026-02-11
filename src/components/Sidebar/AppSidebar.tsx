@@ -68,13 +68,13 @@ export function AppSidebar({
   ];
 
   const group5 = [
-    { tool: 'rectangle' as Tool, icon: Square, label: 'Retângulo', disabled: true, soon: true },
-    { tool: 'triangle' as Tool, icon: Triangle, label: 'Triângulo', disabled: true, soon: true },
+    { tool: 'rectangle' as Tool, icon: Square, label: 'Retângulo' },
+    { tool: 'triangle' as Tool, icon: Triangle, label: 'Triângulo', disabled: true },
   ];
 
   const group6 = [
-    { tool: 'circle' as Tool, icon: Circle, label: 'Círculo', disabled: true, soon: true },
-    { tool: 'line' as Tool, icon: Minus, label: 'Linha', disabled: true, soon: true },
+    { tool: 'circle' as Tool, icon: Circle, label: 'Círculo' },
+    { tool: 'line' as Tool, icon: Minus, label: 'Linha' },
   ];
 
   const group7 = [
@@ -223,17 +223,20 @@ export function AppSidebar({
             <Divider />
           </div>
 
-          {/* Formas (em desenvolvimento) */}
+          {/* Formas geométricas */}
           <div className="space-y-1">
             <div className="grid grid-cols-2 gap-x-1.5 gap-y-1.5 w-max mx-auto justify-items-center">
               {group5.map((tool) => {
                 const IconComponent = tool.icon;
+                const isActive = !tool.disabled && selectedTool === tool.tool;
                 return (
                   <ToolBtn
                     key={tool.tool}
-                    disabled
-                    featureOff
-                    title={`${tool.label} (em breve)`}
+                    isActive={isActive}
+                    disabled={tool.disabled}
+                    featureOff={tool.disabled}
+                    title={tool.disabled ? `${tool.label} (em desenvolvimento)` : tool.label}
+                    onClick={tool.disabled ? undefined : () => onToolChange(tool.tool)}
                   >
                     <IconComponent size={16} />
                   </ToolBtn>
@@ -246,12 +249,13 @@ export function AppSidebar({
             <div className="grid grid-cols-2 gap-x-1.5 gap-y-1.5 w-max mx-auto justify-items-center">
               {group6.map((tool) => {
                 const IconComponent = tool.icon;
+                const isActive = selectedTool === tool.tool;
                 return (
                   <ToolBtn
                     key={tool.tool}
-                    disabled
-                    featureOff
-                    title={`${tool.label} (em breve)`}
+                    isActive={isActive}
+                    title={tool.label}
+                    onClick={() => onToolChange(tool.tool)}
                   >
                     <IconComponent size={16} />
                   </ToolBtn>

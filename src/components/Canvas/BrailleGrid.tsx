@@ -8,7 +8,9 @@ import { BrailleGrid as BrailleGridType, BrailleCell, Tool } from "@/types/brail
 import { useDrawing } from "@/hooks/useDrawing";
 import { digitToLetter } from "@/lib/brailleMappings";
 import { SelectionState } from "@/hooks/useSelection";
+import { ShapePlacingState, isShapeTool } from "@/hooks/useShapes";
 import { CELL_WIDTH, CELL_HEIGHT } from "@/lib/constants";
+import { DOT_POSITIONS } from "@/lib/shapeRasterizer";
 
 export interface BrailleGridProps {
   grid: BrailleGridType;
@@ -24,6 +26,8 @@ export interface BrailleGridProps {
   onGridChange?: (grid: BrailleGridType) => void;
   hasClipboard: boolean;
   onSelectionChange?: (selection: SelectionState) => void;
+  /** Estado do sistema de formas geométricas (preview + handlers) */
+  shapes?: ShapePlacingState;
 }
 
 const DOT_RADIUS = 2;
@@ -51,6 +55,7 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       onGridChange,
       hasClipboard,
       onSelectionChange,
+      shapes,
     },
     ref
   ) {
@@ -121,7 +126,45 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
           }
         }
       }
-    }, [grid, zoom, showLetters]);
+
+      // ── 7. Overlay de preview de formas (não altera grid.cells) ──
+      if (shapes?.isPlacingShape && shapes.previewDotsMap.size > 0) {
+        // Desenhar dots de preview em azul semi-transparente
+        ctx.fillStyle = "rgba(59, 130, 246, 0.75)"; // blue-500
+
+        for (const [key, dots] of shapes.previewDotsMap) {
+          const [cx, cy] = key.split(",").map(Number);
+          const cellPxX = cx * scaledCellW;
+          const cellPxY = cy * scaledCellH;
+
+          dots.forEach((dotNum: number) => {
+            const di = dotNum - 1;
+            if (di < 0 || di >= DOT_POSITIONS.length) return;
+            const pos = DOT_POSITIONS[di];
+            const px = cellPxX + pos.x * scaledCellW;
+            const py = cellPxY + pos.y * scaledCellH;
+            ctx.beginPath();
+            ctx.arc(px, py, DOT_RADIUS * zoom, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+
+        // Bounding box em linha pontilhada (ajuda visual)
+        if (shapes.boundingBox) {
+          const { x0, y0, x1, y1 } = shapes.boundingBox;
+          ctx.setLineDash([4 * zoom, 4 * zoom]);
+          ctx.strokeStyle = "rgba(59, 130, 246, 0.4)";
+          ctx.lineWidth = 1 * zoom;
+          ctx.strokeRect(
+            x0 * scaledCellW,
+            y0 * scaledCellH,
+            (x1 - x0 + 1) * scaledCellW,
+            (y1 - y0 + 1) * scaledCellH
+          );
+          ctx.setLineDash([]);
+        }
+      }
+    }, [grid, zoom, showLetters, shapes?.isPlacingShape, shapes?.previewDotsMap, shapes?.boundingBox]);
 
     const drawGrid = (
       ctx: CanvasRenderingContext2D,
@@ -314,6 +357,10 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       if (selectedTool === "pencil" || selectedTool === "eraser") {
         startDrawing(pos.x, pos.y, selectedTool);
         e.stopPropagation();
+      } else if (isShapeTool(selectedTool)) {
+        // Ferramentas de forma: iniciar placement via hook
+        shapes?.handleShapeMouseDown(pos.x, pos.y, selectedTool);
+        e.stopPropagation();
       } else if (selectedTool === "text" || selectedTool === "fill") {
         const cellX = Math.floor(pos.x / CELL_WIDTH);
         const cellY = Math.floor(pos.y / CELL_HEIGHT);
@@ -343,6 +390,10 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
         const pos = getMousePosition(e);
         continueDrawing(pos.x, pos.y, selectedTool);
         e.stopPropagation();
+      } else if (isShapeTool(selectedTool) && shapes?.isPlacingShape) {
+        const pos = getMousePosition(e);
+        shapes.handleShapeMouseMove(pos.x, pos.y);
+        e.stopPropagation();
       } else if (selectedTool === "select") {
         // Para a ferramenta select, delegamos para o DrawingArea
         onMouseMove(e);
@@ -361,6 +412,9 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       
       if ((selectedTool === "pencil" || selectedTool === "eraser") && isDrawing) {
         finishDrawing();
+        e.stopPropagation();
+      } else if (isShapeTool(selectedTool) && shapes?.isPlacingShape) {
+        shapes.handleShapeMouseUp();
         e.stopPropagation();
       } else if (selectedTool === "select") {
         // Para select, só fazemos click em célula se NÃO estava selecionando (arraste)
@@ -388,6 +442,11 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       if ((selectedTool === "pencil" || selectedTool === "eraser") && isDrawing) {
         cancelDrawing();
       }
+
+      // Forma: se está a arrastar (não locked), finaliza ao sair do canvas
+      if (isShapeTool(selectedTool) && shapes?.isPlacingShape && !shapes.isLocked) {
+        shapes.handleShapeMouseUp();
+      }
       
       // Cancela drag ao sair do canvas
       if (selectedTool === "select" && selection?.isDragging) {
@@ -414,6 +473,7 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
             imageRendering: "pixelated",
             cursor: (() => {
               if (selectedTool === "pencil") return "crosshair";
+              if (isShapeTool(selectedTool)) return "crosshair";
               if (selectedTool === "select") {
                 if (selection?.isDragging) return "grabbing";
                 if (selection?.hasSelection) return "grab";

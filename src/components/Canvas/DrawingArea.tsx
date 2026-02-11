@@ -7,6 +7,7 @@ import { ResolutionControls } from '../Controls/ResolutionControls';
 import { CopyLetters } from '../Controls/CopyLetters';
 import { BrailleGrid as BrailleGridType, Tool } from '@/types/braille';
 import { SelectionState } from '@/hooks/useSelection';
+import { ShapePlacingState } from '@/hooks/useShapes';
 import { CELL_WIDTH, CELL_HEIGHT } from '@/lib/constants';
 
 interface DrawingAreaProps {
@@ -23,6 +24,8 @@ interface DrawingAreaProps {
   onToggleLetters?: () => void;
   onInsertText?: (cellX: number, cellY: number, text: string) => void;
   onSelectionChange?: (selection: SelectionState) => void;
+  /** Estado do sistema de formas geométricas */
+  shapes?: ShapePlacingState;
 }
 
 
@@ -47,7 +50,8 @@ export const DrawingArea = ({
   onGridChange,
   onToggleLetters,
   onInsertText,
-  onSelectionChange
+  onSelectionChange,
+  shapes
 }: DrawingAreaProps) => {
   const [showLetters, setShowLetters] = useState(propShowLetters || false);
   const [textBox, setTextBox] = useState<TextBoxState | null>(null);
@@ -205,6 +209,7 @@ export const DrawingArea = ({
             onGridChange={onGridChange}
             hasClipboard={hasClipboard}
             onSelectionChange={onSelectionChange}
+            shapes={shapes}
           />
 
           {textBox && selectedTool === 'text' && (
@@ -246,8 +251,18 @@ export const DrawingArea = ({
               selectedTool === 'pencil' ? 'Lápis (desenhar)' :
               selectedTool === 'text' ? 'Texto' :
               selectedTool === 'select' ? 'Selecionar' :
+              selectedTool === 'rectangle' ? 'Retângulo' :
+              selectedTool === 'circle' ? 'Círculo' :
+              selectedTool === 'triangle' ? 'Triângulo' :
+              selectedTool === 'line' ? 'Linha' :
+              selectedTool === 'fill' ? 'Preenchimento' :
               selectedTool
             }
+            {shapes?.isPlacingShape && (
+              shapes.isLocked
+                ? ' — Enter para aplicar, Esc para cancelar'
+                : ' — arraste para definir'
+            )}
           </div>
         </div>
       </div>
