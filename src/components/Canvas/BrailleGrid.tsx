@@ -4,9 +4,11 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { BrailleGrid as BrailleGridType } from "@/types/braille";
+import { BrailleGrid as BrailleGridType, BrailleCell, Tool } from "@/types/braille";
 import { useDrawing } from "@/hooks/useDrawing";
 import { digitToLetter } from "@/lib/brailleMappings";
+import { SelectionState } from "@/hooks/useSelection";
+import { CELL_WIDTH, CELL_HEIGHT } from "@/lib/constants";
 
 export interface BrailleGridProps {
   grid: BrailleGridType;
@@ -17,15 +19,13 @@ export interface BrailleGridProps {
   onMouseLeave: (e: React.MouseEvent) => void;
   onCellClick: (x: number, y: number, event?: React.MouseEvent) => void;
   showLetters: boolean;
-  selection: any;
-  selectedTool: any;
+  selection: SelectionState;
+  selectedTool: Tool;
   onGridChange?: (grid: BrailleGridType) => void;
   hasClipboard: boolean;
-  onSelectionChange: (selection: any) => void;
+  onSelectionChange?: (selection: SelectionState) => void;
 }
 
-const CELL_WIDTH = 20;
-const CELL_HEIGHT = 30;
 const DOT_RADIUS = 2;
 
 export type BrailleGridRef = {
@@ -79,41 +79,14 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       onSelectionChange?.(selection);
     }, [selection]);
 
-    // CORREÇÃO: Effect para limpar seleção quando muda ferramenta
+    // Limpa seleção ao mudar de ferramenta
     useEffect(() => {
       // Se mudou para uma ferramenta que não é select e há seleção ativa, limpar
       if (selectedTool !== "select" && selection?.hasSelection && selection.clearSelection) {
-        console.log("🔴 Ferramenta mudou para", selectedTool, "- limpando seleção");
         selection.clearSelection();
       }
     }, [selectedTool, selection?.hasSelection, selection?.clearSelection]);
 
-    // CORREÇÃO: Effect para ESC e outros eventos de teclado
-    useEffect(() => {
-      const handleKeyDown = (e: KeyboardEvent) => {
-        // ESC para limpar seleção
-        if (e.key === 'Escape' && selection?.hasSelection && selection.clearSelection) {
-          console.log("🔴 ESC pressionado - limpando seleção");
-          selection.clearSelection();
-          e.preventDefault();
-        }
-        
-        // Setas para mover seleção (só se ferramenta select estiver ativa)
-        if (selectedTool === "select" && selection?.hasSelection && selection.moveSelection && 
-            ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-          e.preventDefault();
-          const direction = e.key.replace('Arrow', '').toLowerCase() as 'up' | 'down' | 'left' | 'right';
-          selection.moveSelection(direction);
-        }
-      };
-
-      // Adicionar listener de teclado
-      document.addEventListener('keydown', handleKeyDown);
-      
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-      };
-    }, [selectedTool, selection?.hasSelection, selection?.clearSelection, selection?.moveSelection]);
 
     useEffect(() => {
       const canvas = canvasRef.current;
@@ -205,7 +178,7 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
 
     const drawDots = (
       ctx: CanvasRenderingContext2D,
-      cell: any,
+      cell: BrailleCell,
       x: number,
       y: number,
       cellW: number,
@@ -247,7 +220,7 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
 
     const drawLetter = (
       ctx: CanvasRenderingContext2D,
-      cell: any,
+      cell: BrailleCell,
       x: number,
       y: number,
       cellW: number,
@@ -283,7 +256,7 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       };
     };
 
-    // CORREÇÃO 1: Função para determinar se deve iniciar seleção/drag
+    // Determina se o clique deve iniciar seleção ou drag
     const shouldHandleSelectionOrDrag = (pos: { x: number; y: number }) => {
       // Se não é ferramenta select, não maneja seleção
       if (selectedTool !== "select") return false;
@@ -302,10 +275,9 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
     };
 
     const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-      console.log("🟡 [BrailleGrid] handleMouseDown chamado, ferramenta:", selectedTool);
       const pos = getMousePosition(e);
 
-      // CORREÇÃO 2: Priorizar seleção/drag quando apropriado
+      // Prioriza seleção/drag na ferramenta select
       if (selectedTool === "select") {
         const shouldHandleSelection = shouldHandleSelectionOrDrag(pos);
         
@@ -316,11 +288,9 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
           const cellKey = `${cellX},${cellY}`;
           
           if (selection.selectedCells.has(cellKey)) {
-            console.log("🔵 Tentando iniciar drag");
             // Tentar iniciar drag através do selection hook
             const dragStarted = selection.startDrag && selection.startDrag(pos.x, pos.y);
             if (dragStarted) {
-              console.log("✅ Drag iniciado com sucesso");
               e.stopPropagation();
               return;
             }
@@ -328,14 +298,12 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
         }
         
         // Se não iniciou drag, delegar para o DrawingArea (seleção)
-        console.log("🔵 Delegando para DrawingArea (seleção)");
         onMouseDown(e);
         return;
       }
 
-      // CORREÇÃO 3: Sempre limpar seleção para outras ferramentas
+      // Limpa seleção ao usar ferramentas que não são select
       if (selection?.hasSelection && selection.clearSelection) {
-        console.log("🔴 Limpando seleção - ferramenta não é select");
         selection.clearSelection();
         // Forçar re-render para garantir que a seleção visual suma
         setTimeout(() => {
@@ -361,10 +329,9 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
     };
 
     const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-      // CORREÇÃO 4: Priorizar drag se está acontecendo
+      // Atualiza posição do drag durante mouse move
       if (selectedTool === "select" && selection?.isDragging) {
         const pos = getMousePosition(e);
-        console.log("🔵 Atualizando drag");
         if (selection.updateDrag) {
           selection.updateDrag(pos.x, pos.y);
         }
@@ -383,11 +350,8 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
     };
 
     const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
-      console.log("🟡 [BrailleGrid] handleMouseUp chamado, ferramenta:", selectedTool);
-      
-      // CORREÇÃO 5: Finalizar drag se estava acontecendo
+      // Finaliza drag ao soltar o mouse
       if (selectedTool === "select" && selection?.isDragging) {
-        console.log("🔵 Finalizando drag");
         if (selection.finishDrag) {
           selection.finishDrag();
         }
@@ -425,9 +389,8 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
         cancelDrawing();
       }
       
-      // CORREÇÃO 6: Cancelar drag se sair do canvas
+      // Cancela drag ao sair do canvas
       if (selectedTool === "select" && selection?.isDragging) {
-        console.log("🔴 Cancelando drag por mouse leave");
         if (selection.cancelDrag) {
           selection.cancelDrag();
         }
@@ -461,7 +424,7 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
           }}
         />
 
-        {/* CORREÇÃO 7: Visual melhorado para drag */}
+        {/* Overlay visual de seleção e drag */}
         {(function () {
           const hasSelectedCells = selection?.selectedCells?.size > 0;
           const selectingNow =
@@ -478,14 +441,6 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
           const [onlyX, onlyY] = selectedSingleCell
             ? selectedSingleCell.split(",").map(Number)
             : [null, null];
-
-          console.log("🟨 brailleGrid - selection props:", {
-            isSelecting: selection?.isSelecting,
-            start: selection?.selectionStart,
-            end: selection?.selectionEnd,
-            selectedCells: selection?.selectedCells,
-            isDragging: selection?.isDragging,
-          });
 
           return (hasSelectedCells || selectingNow || selectedSingleCell) && (
             <div className="absolute inset-0 pointer-events-none">
@@ -524,7 +479,7 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
 
               {/* Células selecionadas normais */}
               {!selection?.isDragging && selection?.selectedCells?.size > 0 &&
-                Array.from(selection.selectedCells).map((key: string) => {
+                Array.from(selection.selectedCells as Set<string>).map((key) => {
                   const [x, y] = key.split(",").map(Number);
                   return (
                     <div
@@ -542,10 +497,10 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
 
               {/* Preview durante drag */}
               {selection?.isDragging && selection?.dragOffset && selection?.selectedCells &&
-                Array.from(selection.selectedCells).map((key: string) => {
+                Array.from(selection.selectedCells as Set<string>).map((key) => {
                   const [x, y] = key.split(",").map(Number);
-                  const newX = x + selection.dragOffset.x;
-                  const newY = y + selection.dragOffset.y;
+                  const newX = x + selection.dragOffset!.x;
+                  const newY = y + selection.dragOffset!.y;
                   
                   // Verificar se a nova posição é válida
                   const isValid = newX >= 0 && newX < grid.width && newY >= 0 && newY < grid.height;

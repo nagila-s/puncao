@@ -40,7 +40,7 @@ export function writeTextToGrid(
       const cellSign = newGrid.cells[y][x];
       cellSign.dots = [...brailleIndicators.NUMBER];
       cellSign.letter = "#";
-      (cellSign as any).origin = "text";
+      cellSign.origin = "text";
       x += 1;
       if (x >= newGrid.width) {
         x = 0;
@@ -53,7 +53,7 @@ export function writeTextToGrid(
     const letter = isDigit(ch) ? digitToLetter[ch] : ch;
     cell.letter = letter;
     cell.dots = letterToBraillePatternFunc(letter);
-    (cell as any).origin = "text";
+    cell.origin = "text";
 
     x += 1;
   }

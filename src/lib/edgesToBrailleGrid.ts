@@ -5,9 +5,7 @@
  */
 import type { BrailleGrid, BrailleCell } from '@/types/braille';
 import { findBestMatchingLetter } from '@/lib/brailleMappings';
-
-export const CELL_WIDTH = 20;
-export const CELL_HEIGHT = 30;
+import { CELL_WIDTH, CELL_HEIGHT } from '@/lib/constants';
 
 // Posições dos pontos Braille na célula (em percentual 0–1), alinhado com useDrawing
 const BRAILLE_DOT_POSITIONS = [

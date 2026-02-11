@@ -5,7 +5,7 @@ export interface BrailleCell {
   dots: number[]; // Array de números 1-6 representando pontos ativos
   letter?: string;
   isActive?: boolean;
-  origin?: 'manual' | 'automatic';
+  origin?: 'manual' | 'automatic' | 'text';
 }
 
 export interface BrailleGrid {

@@ -17,10 +17,9 @@ import {
 } from '@/lib/imagePipeline';
 import {
   edgesToBrailleGrid,
-  CELL_WIDTH,
-  CELL_HEIGHT,
   type EdgesToBrailleParams,
 } from '@/lib/edgesToBrailleGrid';
+import { CELL_WIDTH, CELL_HEIGHT } from '@/lib/constants';
 
 const ACCEPT_IMAGES = '.png,.jpg,.jpeg,.webp';
 

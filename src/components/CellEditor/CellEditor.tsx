@@ -23,12 +23,12 @@ const BRAILLE_DOT_POSITIONS = [
 export const CellEditor = ({ cell, onUpdate, onClose }: CellEditorProps) => {
   const [currentLetter, setCurrentLetter] = useState(cell.letter || ' ');
   const [currentDots, setCurrentDots] = useState<number[]>(cell.dots || []);
-  const [origin, setOrigin] = useState<'manual' | 'automatic'>((cell as any).origin || 'automatic');
+  const [origin, setOrigin] = useState<BrailleCell['origin']>(cell.origin || 'automatic');
 
   useEffect(() => {
     setCurrentLetter(cell.letter || ' ');
     setCurrentDots(cell.dots || []);
-    setOrigin((cell as any).origin || 'automatic');
+    setOrigin(cell.origin || 'automatic');
   }, [cell]);
 
   const handleLetterChange = (newLetter: string) => {
@@ -57,7 +57,7 @@ export const CellEditor = ({ cell, onUpdate, onClose }: CellEditorProps) => {
   };
 
   const handleSave = () => {
-    const updatedCell: BrailleCell & { origin: 'manual' | 'automatic' } = {
+    const updatedCell: BrailleCell = {
       ...cell,
       letter: currentLetter,
       dots: currentDots,
@@ -115,7 +115,7 @@ export const CellEditor = ({ cell, onUpdate, onClose }: CellEditorProps) => {
 
           {/* Info sobre origem */}
           <div className="text-xs text-muted-foreground">
-            <span className="font-medium">Origem:</span> {origin === 'manual' ? 'Manual' : 'Automático'}
+            <span className="font-medium">Origem:</span> {origin === 'manual' ? 'Manual' : origin === 'text' ? 'Texto' : 'Automático'}
           </div>
 
           {/* Botões */}

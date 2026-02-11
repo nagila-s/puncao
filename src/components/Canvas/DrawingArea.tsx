@@ -5,14 +5,16 @@ import { BrailleGrid } from './BrailleGrid';
 import { ZoomControls } from '../Controls/ZoomControls';
 import { ResolutionControls } from '../Controls/ResolutionControls';
 import { CopyLetters } from '../Controls/CopyLetters';
-import { BrailleGrid as BrailleGridType } from '@/types/braille';
+import { BrailleGrid as BrailleGridType, Tool } from '@/types/braille';
+import { SelectionState } from '@/hooks/useSelection';
+import { CELL_WIDTH, CELL_HEIGHT } from '@/lib/constants';
 
 interface DrawingAreaProps {
   grid: BrailleGridType;
   zoom: number;
-  selectedTool: string;
+  selectedTool: Tool;
   showLetters?: boolean;
-  selection?: any;
+  selection: SelectionState;
   hasClipboard?: boolean;
   onZoomChange: (zoom: number) => void;
   onResolutionChange: (resolution: { width: number; height: number; label: string }) => void;
@@ -20,11 +22,9 @@ interface DrawingAreaProps {
   onGridChange: (grid: BrailleGridType) => void;
   onToggleLetters?: () => void;
   onInsertText?: (cellX: number, cellY: number, text: string) => void;
-  onSelectionChange: (selection: any) => void;
+  onSelectionChange?: (selection: SelectionState) => void;
 }
 
-const CELL_WIDTH = 20;
-const CELL_HEIGHT = 30;
 
 type TextBoxState = {
   cellX: number;
@@ -73,8 +73,6 @@ export const DrawingArea = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     if (selectedTool !== 'select') return;
     if (!selection?.startSelection) return;
-    
-    console.log('🟢 handleMouseDown (select)', e.clientX, e.clientY);
 
     const canvas = e.currentTarget as HTMLElement;
     const rect = canvas.getBoundingClientRect();
@@ -103,7 +101,6 @@ export const DrawingArea = ({
 
   const handleMouseUp = (e: React.MouseEvent) => {
     if (selectedTool !== 'select') return;
-    console.log('🔴 handleMouseUp (DrawingArea) — finalizando seleção');
     selection?.finishSelection?.();
     e.preventDefault();
     e.stopPropagation();

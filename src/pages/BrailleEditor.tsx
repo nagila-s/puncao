@@ -98,40 +98,14 @@ export const BrailleEditor = () => {
 
   const handleToolChange = useCallback((tool: Tool) => {
     if (selection.isSelecting) {
-      console.log("🚫 tentativa de trocar ferramenta durante seleção");
       return;
     }
     if (tool === 'image_import') {
       setToolBeforeImageImport(selectedTool);
     }
-    console.log("🛠️ ferramenta alterada para:", tool);
     setSelectedTool(tool);
   }, [selection.isSelecting, selectedTool]);
 
-  const [isShiftPressed, setIsShiftPressed] = useState(false);
-
-  // Detectar tecla Shift
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') {
-        setIsShiftPressed(true);
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') {
-        setIsShiftPressed(false);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
 
   // >>> Inserção de texto vinda da caixa inline no DrawingArea
   const handleInsertText = useCallback((cellX: number, cellY: number, text: string) => {
@@ -188,11 +162,8 @@ export const BrailleEditor = () => {
       const newGrid = JSON.parse(JSON.stringify(grid));
       shapes.floodFill(newGrid, x, y);
       handleGridChange(newGrid);
-    } else if (selectedTool === 'pencil' && isShiftPressed) {
-      // Shift + pencil → modo linha (comportamento anterior)
-      setSelectedTool('line');
     }
-  }, [selectedTool, lastClickTime, handleCellDoubleClick, selection, grid, shapes, handleGridChange, isShiftPressed]);
+  }, [selectedTool, lastClickTime, handleCellDoubleClick, selection, grid, shapes, handleGridChange]);
 
   const handleCellEditUpdate = useCallback((updatedCell: BrailleCell) => {
     const newGrid = JSON.parse(JSON.stringify(grid));
@@ -281,6 +252,7 @@ export const BrailleEditor = () => {
     onPaste: handlePasteAtCursor,
     onCut: selection.cutSelectedCells,
     onDelete: selection.deleteSelectedCells,
+    onClearSelection: selection.clearSelection,
     onToggleView: handleToggleView,
     onMoveSelection: handleMoveSelection,
     onEnterEdit: handleEnterEdit,
@@ -303,18 +275,6 @@ export const BrailleEditor = () => {
     document.addEventListener('keydown', handleDebugKey);
     return () => document.removeEventListener('keydown', handleDebugKey);
   }, []);
-
-  const debugInfo = {
-    hasSelection: selection.hasSelection,
-    selectedCellsCount: selection.selectedCells.size,
-    hasClipboard: selection.hasClipboard,
-    canUndo: historyIndex > 0,
-    canRedo: historyIndex < history.length - 1,
-    isShiftPressed,
-    selectedTool
-  };
-
-  console.log('Debug info:', debugInfo);
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -355,9 +315,7 @@ export const BrailleEditor = () => {
               onGridChange={handleGridChange}
               onToggleLetters={handleToggleView}
               onInsertText={handleInsertText}
-              onSelectionChange={(selection) => {
-                console.log('🔶 nova seleção:', selection);
-              }}
+              onSelectionChange={() => {}}
             />
           </main>
         </div>
@@ -393,7 +351,6 @@ export const BrailleEditor = () => {
             <div>Clipboard: {selection.hasClipboard ? 'Yes' : 'No'}</div>
             <div>Can Undo: {historyIndex > 0 ? 'Yes' : 'No'}</div>
             <div>Can Redo: {historyIndex < history.length - 1 ? 'Yes' : 'No'}</div>
-            <div>Shift: {isShiftPressed ? 'Pressed' : 'No'}</div>
             <div>Tool: {selectedTool}</div>
           </div>
         )}

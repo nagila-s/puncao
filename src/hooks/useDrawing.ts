@@ -1,9 +1,7 @@
 import { useState, useCallback } from 'react';
 import { BrailleGrid, BrailleCell } from '@/types/braille';
 import { findBestMatchingLetter, letterToBraillePatternFunc } from '@/lib/brailleMappings';
-
-const CELL_WIDTH = 20;
-const CELL_HEIGHT = 30;
+import { CELL_WIDTH, CELL_HEIGHT } from '@/lib/constants';
 
 // Posições dos pontos braille na célula (em percentual)
 const BRAILLE_DOT_POSITIONS = [
@@ -20,7 +18,7 @@ export const useDrawing = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid) 
   const [lastPaintedPoint, setLastPaintedPoint] = useState<{cellX: number, cellY: number, dotIndex: number} | null>(null);
 
   // Determina qual ponto braille está sendo tocado pelo mouse
-  const getBrailleDotAtPosition = (x: number, y: number) => {
+  const getBrailleDotAtPosition = (x: number, y: number): { cellX: number; cellY: number; dotIndex: number } | null => {
     const cellX = Math.floor(x / CELL_WIDTH);
     const cellY = Math.floor(y / CELL_HEIGHT);
     
@@ -33,7 +31,7 @@ export const useDrawing = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid) 
     const relativeY = (y - cellY * CELL_HEIGHT) / CELL_HEIGHT;
 
     // Encontra o ponto braille mais próximo
-    let closestDot = null;
+    let closestDot: { cellX: number; cellY: number; dotIndex: number } | null = null;
     let closestDistance = Infinity;
     const PROXIMITY_THRESHOLD = 0.25; // Raio de proximidade para ativar um ponto
 
@@ -53,10 +51,8 @@ export const useDrawing = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid) 
 
   // Pinta um ponto específico (apenas ativa, nunca desativa)
   const paintDot = useCallback((cellX: number, cellY: number, dotIndex: number) => {
-    console.log('paintDot called:', cellX, cellY, dotIndex);
     const newGrid = JSON.parse(JSON.stringify(grid));
     const cell = newGrid.cells[cellY][cellX];
-    console.log('current cell:', cell);
     
     // Apenas adiciona o ponto, nunca remove
     const currentDots = new Set(cell.dots || []);
@@ -69,8 +65,6 @@ export const useDrawing = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid) 
     const suggestedLetter = findBestMatchingLetter(newDots);
     cell.letter = suggestedLetter;
     
-    console.log('updated cell:', cell);
-    console.log('calling onGridChange with newGrid');
     onGridChange(newGrid);
   }, [grid, onGridChange]);
 
@@ -94,13 +88,10 @@ export const useDrawing = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid) 
   }, [grid, onGridChange]);
 
   const startDrawing = useCallback((x: number, y: number, tool: string = 'pencil') => {
-    console.log('startDrawing called with:', x, y, tool);
     setIsDrawing(true);
     const dotPosition = getBrailleDotAtPosition(x, y);
-    console.log('dotPosition:', dotPosition);
     
     if (dotPosition) {
-      console.log('Painting/Erasing dot at:', dotPosition);
       if (tool === 'eraser') {
         eraseDot(dotPosition.cellX, dotPosition.cellY, dotPosition.dotIndex);
       } else {

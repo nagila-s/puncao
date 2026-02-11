@@ -20,22 +20,30 @@ const zoomLevels: ZoomLevel[] = [
 
 export const ZoomControls = ({ zoom, onZoomChange, onZoomReset }: ZoomControlsProps) => {
   const currentZoomIndex = zoomLevels.findIndex(level => level.value === zoom);
-  const canZoomOut = currentZoomIndex > 0;
-  const canZoomIn = currentZoomIndex < zoomLevels.length - 1;
+  const isCustomZoom = currentZoomIndex === -1;
+
+  // Para valores fora da lista, encontra o nível mais próximo abaixo e acima
+  const nextLowerIndex = isCustomZoom
+    ? zoomLevels.findLastIndex(level => level.value < zoom)
+    : currentZoomIndex - 1;
+  const nextHigherIndex = isCustomZoom
+    ? zoomLevels.findIndex(level => level.value > zoom)
+    : currentZoomIndex + 1;
+
+  const canZoomOut = nextLowerIndex >= 0;
+  const canZoomIn = nextHigherIndex >= 0 && nextHigherIndex < zoomLevels.length;
 
   const handleZoomOut = () => {
     if (canZoomOut) {
-      onZoomChange(zoomLevels[currentZoomIndex - 1].value);
+      onZoomChange(zoomLevels[nextLowerIndex].value);
     }
   };
 
   const handleZoomIn = () => {
     if (canZoomIn) {
-      onZoomChange(zoomLevels[currentZoomIndex + 1].value);
+      onZoomChange(zoomLevels[nextHigherIndex].value);
     }
   };
-
-  const currentZoomLabel = zoomLevels.find(level => level.value === zoom)?.label || `${Math.round(zoom * 100)}%`;
 
   return (
     <div className="flex items-center gap-2 bg-card border border-border p-2 rounded">
@@ -56,6 +64,11 @@ export const ZoomControls = ({ zoom, onZoomChange, onZoomReset }: ZoomControlsPr
         className="min-w-16 text-sm bg-background border border-border px-2 py-1 
                  focus:outline-none focus:ring-2 focus:ring-ring"
       >
+        {isCustomZoom && (
+          <option key="custom" value={zoom}>
+            {`${Math.round(zoom * 100)}%`}
+          </option>
+        )}
         {zoomLevels.map((level) => (
           <option key={level.value} value={level.value}>
             {level.label}

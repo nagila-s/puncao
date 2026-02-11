@@ -1,9 +1,7 @@
 import { useCallback, useState } from 'react';
 import { BrailleGrid, BrailleCell, Tool } from '@/types/braille';
 import { findBestMatchingLetter } from '@/lib/brailleMappings';
-
-const CELL_WIDTH = 20;
-const CELL_HEIGHT = 30;
+import { CELL_WIDTH, CELL_HEIGHT } from '@/lib/constants';
 
 export const useShapes = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid) => void) => {
   const [isDrawingShape, setIsDrawingShape] = useState(false);
@@ -19,7 +17,7 @@ export const useShapes = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid) =
   const fillCell = (newGrid: BrailleGrid, cellX: number, cellY: number, pattern: number[]) => {
     if (cellX >= 0 && cellX < grid.width && cellY >= 0 && cellY < grid.height) {
       const cell = newGrid.cells[cellY][cellX];
-      cell.dots = pattern;
+      cell.dots = [...pattern];
       cell.letter = findBestMatchingLetter(pattern);
       cell.origin = 'manual';
     }
@@ -144,31 +142,23 @@ export const useShapes = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid) =
   };
 
   const floodFill = (newGrid: BrailleGrid, startX: number, startY: number) => {
-    console.log('floodFill called with:', startX, startY);
     if (startX < 0 || startX >= newGrid.width || startY < 0 || startY >= newGrid.height) {
-      console.log('floodFill: coordinates out of bounds');
       return;
     }
     
     const startCell = newGrid.cells[startY][startX];
-    console.log('floodFill: startCell:', startCell);
     const originalDots = JSON.stringify([...startCell.dots].sort());
     const fillPattern = [1, 2, 3, 4, 5, 6]; // Preenche com todos os pontos
     const targetDots = JSON.stringify([...fillPattern].sort());
     
-    console.log('floodFill: originalDots:', originalDots, 'targetDots:', targetDots);
-    
     // Se já está preenchido, não faz nada
     if (originalDots === targetDots) {
-      console.log('floodFill: already filled, returning');
       return;
     }
     
     const stack = [{ x: startX, y: startY }];
     const visited = new Set<string>();
     let cellsFilled = 0;
-    
-    console.log('floodFill: starting flood fill algorithm');
     
     while (stack.length > 0) {
       const { x, y } = stack.pop()!;
@@ -195,8 +185,6 @@ export const useShapes = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid) =
       stack.push({ x, y: y + 1 });
       stack.push({ x, y: y - 1 });
     }
-    
-    console.log('floodFill: filled', cellsFilled, 'cells');
   };
 
   const startShape = useCallback((x: number, y: number) => {
