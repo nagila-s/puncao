@@ -1,19 +1,13 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import type { BrailleGrid } from '@/types/braille';
 import {
   loadImageToImageData,
   toGrayscale,
   contrastOrEqualize,
-  blur,
-  canny,
   binaryThreshold,
-  morphology,
-  skeletonize,
   type ContrastMode,
-  type MorphologyMode,
 } from '@/lib/imagePipeline';
 import {
   edgesToBrailleGrid,
@@ -23,20 +17,11 @@ import { CELL_WIDTH, CELL_HEIGHT } from '@/lib/constants';
 
 const ACCEPT_IMAGES = '.png,.jpg,.jpeg,.webp';
 
-export type PipelineMode = 'drawing' | 'edges';
-
 export interface ImageImportParams {
-  mode: PipelineMode;
   contrastMode: ContrastMode;
   contrastIntensity: number;
-  blurRadius: number;
-  /** Limiar 0–255 para modo "Desenho": pixels mais escuros viram contorno. */
+  /** Limiar 0-255: pixels mais escuros viram contorno. */
   thresholdBinary: number;
-  cannyLow: number;
-  cannyHigh: number;
-  morphologyMode: MorphologyMode;
-  morphologyIterations: number;
-  skeletonizeOn: boolean;
   dotRadius: number;
   thresholdDot: number;
   /** true = tratar claro como contorno (para desenho claro no escuro) */
@@ -44,55 +29,12 @@ export interface ImageImportParams {
 }
 
 const DEFAULT_PARAMS: ImageImportParams = {
-  mode: 'drawing',
   contrastMode: 'contrast',
   contrastIntensity: 1,
-  blurRadius: 0,
   thresholdBinary: 128,
   invertContour: false,
-  cannyLow: 25,
-  cannyHigh: 75,
-  morphologyMode: 'erode',
-  morphologyIterations: 0,
-  skeletonizeOn: false,
   dotRadius: 2.5,
   thresholdDot: 0.1,
-};
-
-const PRESETS: Record<string, Partial<ImageImportParams>> = {
-  'Desenho simples': {
-    mode: 'drawing',
-    thresholdBinary: 128,
-    contrastIntensity: 1,
-    blurRadius: 0,
-    morphologyIterations: 0,
-    skeletonizeOn: false,
-    dotRadius: 2.5,
-    thresholdDot: 0.1,
-  },
-  'Linhas finas': {
-    mode: 'edges',
-    contrastIntensity: 1.5,
-    blurRadius: 0,
-    cannyLow: 15,
-    cannyHigh: 90,
-    morphologyIterations: 0,
-    skeletonizeOn: true,
-    dotRadius: 0.5,
-    thresholdDot: 0.25,
-  },
-  'Linhas grossas': {
-    mode: 'edges',
-    contrastIntensity: 1,
-    blurRadius: 2,
-    cannyLow: 35,
-    cannyHigh: 65,
-    morphologyMode: 'dilate',
-    morphologyIterations: 1,
-    skeletonizeOn: false,
-    dotRadius: 2.5,
-    thresholdDot: 0.5,
-  },
 };
 
 interface ImageImportModalProps {
@@ -113,41 +55,7 @@ function runPipeline(
     mode: params.contrastMode,
     intensity: params.contrastIntensity,
   });
-
-  if (params.mode === 'drawing') {
-    // Modo desenho: preto e branco por limiar. Por padrão escuro = contorno; invertContour = claro = contorno
-    gray = blur(gray, w, h, params.blurRadius);
-    gray = binaryThreshold(gray, w, h, params.thresholdBinary, !params.invertContour);
-  } else {
-    // Modo bordas: Canny
-    gray = blur(gray, w, h, params.blurRadius);
-    gray = canny(gray, w, h, params.cannyLow, params.cannyHigh);
-  }
-
-  gray = morphology(
-    gray,
-    w,
-    h,
-    params.morphologyMode,
-    params.morphologyIterations
-  );
-  if (params.skeletonizeOn) gray = skeletonize(gray, w, h);
-  return gray;
-}
-
-/** Apenas grayscale + contraste, para exibir "Preto e branco". */
-function toGrayPreview(
-  imageData: ImageData,
-  params: Pick<ImageImportParams, 'contrastMode' | 'contrastIntensity'>
-): Uint8Array {
-  const w = imageData.width;
-  const h = imageData.height;
-  let gray = toGrayscale(imageData);
-  gray = contrastOrEqualize(gray, w, h, {
-    mode: params.contrastMode,
-    intensity: params.contrastIntensity,
-  });
-  return gray;
+  return binaryThreshold(gray, w, h, params.thresholdBinary, !params.invertContour);
 }
 
 const PREVIEW_MAX = 280;
@@ -179,11 +87,6 @@ export function ImageImportModal({
       setImageSize(null);
     }
   }, []);
-
-  const grayPreview = useMemo(() => {
-    if (!imageData) return null;
-    return toGrayPreview(imageData, debouncedParams);
-  }, [imageData, debouncedParams.contrastMode, debouncedParams.contrastIntensity]);
 
   const edgesBinary = useMemo(() => {
     if (!imageData) return null;
@@ -236,15 +139,6 @@ export function ImageImportModal({
     value: ImageImportParams[K]
   ) => {
     setParams((p) => ({ ...p, [key]: value }));
-  }, []);
-
-  const resetParams = useCallback(() => {
-    setParams({ ...DEFAULT_PARAMS });
-  }, []);
-
-  const applyPreset = useCallback((name: string) => {
-    const preset = PRESETS[name];
-    if (preset) setParams((p) => ({ ...p, ...preset }));
   }, []);
 
   useEffect(() => {
@@ -303,7 +197,7 @@ export function ImageImportModal({
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm font-medium mb-2">Original</p>
                 <canvas
@@ -326,124 +220,25 @@ export function ImageImportModal({
                 />
               </div>
               <div>
-                <p className="text-sm font-medium mb-2">Preto e branco</p>
-                <p className="text-xs text-muted-foreground mb-1">Claro no original continua claro aqui. Evite &quot;Equalizar&quot; se o fundo ficar escuro.</p>
-                <canvas
-                  width={previewW}
-                  height={previewH}
-                  className="border border-border rounded bg-white max-w-full"
-                  ref={(el) => {
-                    if (!el || !grayPreview || !imageSize) return;
-                    const ctx = el.getContext('2d');
-                    if (!ctx) return;
-                    const imgData = ctx.createImageData(previewW, previewH);
-                    const sw = imageSize.w;
-                    const sh = imageSize.h;
-                    for (let y = 0; y < previewH; y++) {
-                      for (let x = 0; x < previewW; x++) {
-                        const sx = Math.floor((x / previewW) * sw);
-                        const sy = Math.floor((y / previewH) * sh);
-                        const v = grayPreview[sy * sw + sx];
-                        const i = (y * previewW + x) * 4;
-                        imgData.data[i] = imgData.data[i + 1] = imgData.data[i + 2] = v;
-                        imgData.data[i + 3] = 255;
-                      }
-                    }
-                    ctx.putImageData(imgData, 0, 0);
-                  }}
-                  style={{ width: previewW, height: previewH, imageRendering: 'pixelated' }}
-                />
-              </div>
-              <div>
-                <p className="text-sm font-medium mb-2">Contorno final</p>
-                <canvas
-                  width={previewW}
-                  height={previewH}
-                  className="border border-border rounded bg-white max-w-full"
-                  ref={(el) => {
-                    if (!el || !edgesBinary || !imageSize) return;
-                    const ctx = el.getContext('2d');
-                    if (!ctx) return;
-                    const imgData = ctx.createImageData(previewW, previewH);
-                    const sw = imageSize.w;
-                    const sh = imageSize.h;
-                    for (let y = 0; y < previewH; y++) {
-                      for (let x = 0; x < previewW; x++) {
-                        const sx = Math.floor((x / previewW) * sw);
-                        const sy = Math.floor((y / previewH) * sh);
-                        const isContour = edgesBinary[sy * sw + sx] > 127;
-                        const i = (y * previewW + x) * 4;
-                        const display = isContour ? 0 : 255;
-                        imgData.data[i] = imgData.data[i + 1] = imgData.data[i + 2] = display;
-                        imgData.data[i + 3] = 255;
-                      }
-                    }
-                    ctx.putImageData(imgData, 0, 0);
-                  }}
-                  style={{ width: previewW, height: previewH, imageRendering: 'pixelated' }}
-                />
+                <p className="text-sm font-medium mb-2">Preview de pontos</p>
+                {previewGrid ? (
+                  <BraillePreviewCanvas grid={previewGrid} maxSize={PREVIEW_MAX} />
+                ) : (
+                  <div className="border border-border rounded bg-muted/30 h-[200px] flex items-center justify-center text-sm text-muted-foreground">
+                    Sem preview
+                  </div>
+                )}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Contorno final: preto = o que vira pontos Braille (igual ao desenho original).</p>
-
-            {previewGrid && (
-              <div>
-                <p className="text-sm font-medium mb-2">Preview em Braille (miniatura)</p>
-                <BraillePreviewCanvas grid={previewGrid} maxSize={200} />
-              </div>
-            )}
 
             <div className="border-t pt-4 space-y-3">
-              <p className="text-sm font-medium">Ajustes (apenas preview, com atraso de 250ms)</p>
-              <div className="flex flex-wrap gap-4 items-center text-sm border-b pb-3 mb-3">
-                <span className="font-medium">Modo:</span>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="pipelineMode"
-                    checked={params.mode === 'drawing'}
-                    onChange={() => setParam('mode', 'drawing')}
-                  />
-                  Desenho (preto e branco) — limiar
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="pipelineMode"
-                    checked={params.mode === 'edges'}
-                    onChange={() => setParam('mode', 'edges')}
-                  />
-                  Bordas (Canny)
-                </label>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                {params.mode === 'drawing' && (
-                  <>
-                    <label className="flex flex-col gap-1">
-                      <span>Limiar preto/branco (0–255)</span>
-                      <input
-                        type="range"
-                        min="0"
-                        max="255"
-                        value={params.thresholdBinary}
-                        onChange={(e) => setParam('thresholdBinary', parseInt(e.target.value, 10))}
-                      />
-                      <span className="text-muted-foreground text-xs">Abaixo deste valor = contorno (preto)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={params.invertContour}
-                        onChange={(e) => setParam('invertContour', e.target.checked)}
-                      />
-                      <span>Inverter contorno (claro = contorno)</span>
-                    </label>
-                  </>
-                )}
+              <p className="text-sm font-medium">Ajustes rápidos</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <label className="flex flex-col gap-1">
-                  <span>Contraste / Equalizar</span>
+                  <span title="Melhora a separacao entre fundo e desenho.">Contraste</span>
                   <div className="flex items-center gap-2">
                     <select
+                      title="Escolha o tipo de ajuste de contraste."
                       value={params.contrastMode}
                       onChange={(e) => setParam('contrastMode', e.target.value as ContrastMode)}
                       className="rounded border px-2 py-1 flex-1"
@@ -452,6 +247,7 @@ export function ImageImportModal({
                       <option value="equalize">Equalizar</option>
                     </select>
                     <input
+                      title="Intensidade do contraste aplicado."
                       type="range"
                       min="0.5"
                       max="3"
@@ -463,71 +259,24 @@ export function ImageImportModal({
                   </div>
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span>Blur (0–5)</span>
+                  <span title="Define o que vira contorno: valores menores pegam mais detalhes escuros.">
+                    Limiar (0-255)
+                  </span>
                   <input
                     type="range"
                     min="0"
-                    max="5"
-                    step="0.5"
-                    value={params.blurRadius}
-                    onChange={(e) => setParam('blurRadius', parseFloat(e.target.value))}
+                    max="255"
+                    value={params.thresholdBinary}
+                    onChange={(e) => setParam('thresholdBinary', parseInt(e.target.value, 10))}
                   />
-                </label>
-                {params.mode === 'edges' && (
-                  <label className="flex flex-col gap-1">
-                    <span>Canny baixo / alto</span>
-                    <div className="flex gap-1">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={params.cannyLow}
-                        onChange={(e) => setParam('cannyLow', parseInt(e.target.value, 10))}
-                        className="flex-1"
-                      />
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={params.cannyHigh}
-                        onChange={(e) => setParam('cannyHigh', parseInt(e.target.value, 10))}
-                        className="flex-1"
-                      />
-                    </div>
-                  </label>
-                )}
-                <label className="flex flex-col gap-1">
-                  <span>Morfologia</span>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={params.morphologyMode}
-                      onChange={(e) => setParam('morphologyMode', e.target.value as MorphologyMode)}
-                      className="rounded border px-2 py-1"
-                    >
-                      <option value="erode">Erodir</option>
-                      <option value="dilate">Dilatar</option>
-                    </select>
-                    <input
-                      type="number"
-                      min="0"
-                      max="5"
-                      value={params.morphologyIterations}
-                      onChange={(e) => setParam('morphologyIterations', parseInt(e.target.value, 10) || 0)}
-                      className="w-14 rounded border px-1 py-1"
-                    />
-                  </div>
+                  <span className="text-muted-foreground text-xs">Atual: {params.thresholdBinary}</span>
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span>Skeletonize</span>
+                  <span title="Controla a espessura visual da linha no resultado em pontos.">
+                    Espessura da linha
+                  </span>
                   <input
-                    type="checkbox"
-                    checked={params.skeletonizeOn}
-                    onChange={(e) => setParam('skeletonizeOn', e.target.checked)}
-                  />
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span>Raio do ponto (px)</span>
-                  <input
+                    title="Deslize para afinar ou engrossar."
                     type="range"
                     min="0"
                     max="5"
@@ -535,35 +284,19 @@ export function ImageImportModal({
                     value={params.dotRadius}
                     onChange={(e) => setParam('dotRadius', parseFloat(e.target.value))}
                   />
+                  <span className="text-muted-foreground text-xs">Atual: {params.dotRadius.toFixed(1)}</span>
                 </label>
-                <label className="flex flex-col gap-1">
-                  <span>Threshold ponto (0–1)</span>
+                <label
+                  className="flex items-center gap-2 cursor-pointer"
+                  title="Marca quando o desenho claro deve virar contorno, em vez do escuro."
+                >
                   <input
-                    type="range"
-                    min="0.1"
-                    max="0.9"
-                    step="0.05"
-                    value={params.thresholdDot}
-                    onChange={(e) => setParam('thresholdDot', parseFloat(e.target.value))}
+                    type="checkbox"
+                    checked={params.invertContour}
+                    onChange={(e) => setParam('invertContour', e.target.checked)}
                   />
+                  <span>Inverter contorno</span>
                 </label>
-              </div>
-
-              <div className="flex flex-wrap gap-2 pt-2">
-                <span className="text-sm text-muted-foreground mr-2">Presets:</span>
-                {Object.keys(PRESETS).map((name) => (
-                  <Button
-                    key={name}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => applyPreset(name)}
-                  >
-                    {name}
-                  </Button>
-                ))}
-                <Button variant="ghost" size="sm" onClick={resetParams}>
-                  Resetar ajustes
-                </Button>
               </div>
             </div>
 

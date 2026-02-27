@@ -58,6 +58,11 @@ export const HelpModal = ({ onClose }: HelpModalProps) => {
               <div>
                 <strong>Preenchimento:</strong> Clique numa célula para preencher toda a área contígua com a mesma cor (flood fill).
               </div>
+              <div>
+                <strong>Importar imagem:</strong> Ao importar, o ajuste foi simplificado para duas visualizações lado a lado:
+                imagem original e preview de pontos braille. Use apenas os controles essenciais (Contraste, Limiar,
+                Espessura da linha e Inverter contorno) para chegar ao resultado.
+              </div>
             </div>
           </div>
 
@@ -134,6 +139,10 @@ export const HelpModal = ({ onClose }: HelpModalProps) => {
               <div>
                 <strong>Edição manual:</strong> Com a ferramenta Selecionar, clique duas vezes numa célula
                 ou pressione Enter com uma célula selecionada para abrir o editor manual de pontos.
+              </div>
+              <div>
+                <strong>Ajustes com ajuda rápida:</strong> Nos controles da importação de imagem, passe o mouse
+                sobre o nome de cada opção para ver uma explicação curta (hover).
               </div>
             </div>
           </div>
