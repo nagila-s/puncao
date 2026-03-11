@@ -11,10 +11,8 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useShapes, isShapeTool } from '@/hooks/useShapes';
 import { useToast } from '@/hooks/use-toast';
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { Button } from '@/components/ui/button';
 import { writeTextToGrid } from '@/lib/textPlacement';
 import { gridToLetters } from '@/lib/encoding';
-import { useAuth } from '@/contexts/AuthContext';
 
 const createEmptyGrid = (characters: number, lines: number): BrailleGrid => {
   const cells: BrailleCell[][] = [];
@@ -72,9 +70,7 @@ export const BrailleEditor = () => {
   const [editingCell, setEditingCell] = useState<BrailleCell | null>(null);
   const [lastClickTime, setLastClickTime] = useState(0);
   const [showDebug, setShowDebug] = useState(false);
-  const { user, signOut } = useAuth();
   const { toast } = useToast();
-  const userDisplayName = user?.user_metadata?.display_name || user?.user_metadata?.name || 'Usuário';
 
   // Gerenciar histórico (undo/redo)
   const addToHistory = useCallback((newGrid: BrailleGrid) => {
@@ -349,23 +345,6 @@ export const BrailleEditor = () => {
     return () => document.removeEventListener('keydown', handleDebugKey);
   }, []);
 
-  const handleSignOut = useCallback(async () => {
-    const error = await signOut();
-    if (error) {
-      toast({
-        title: 'Erro ao sair',
-        description: error.message,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    toast({
-      title: 'Sessão encerrada',
-      description: 'Você saiu da conta com sucesso.',
-    });
-  }, [signOut, toast]);
-
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen w-full flex flex-col bg-background">
@@ -373,12 +352,6 @@ export const BrailleEditor = () => {
         <div className="h-12 bg-[#F0C930] border-b flex items-center px-4 flex-shrink-0">
           <img src="/favicon.png" alt="Logo Punção" className="h-7 w-auto mr-2" />
           <h1 className="titulo-principal text-foreground">Punção</h1>
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-xs text-foreground/80 hidden sm:inline">{userDisplayName}</span>
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
-              Sair
-            </Button>
-          </div>
         </div>
 
         {/* Layout principal */}
