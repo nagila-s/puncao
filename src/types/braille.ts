@@ -14,6 +14,12 @@ export interface BrailleGrid {
   cells: BrailleCell[][];
 }
 
+export interface OverlayReferenceImage {
+  dataUrl: string;
+  width: number;
+  height: number;
+}
+
 export interface DrawingState {
   grid: BrailleGrid;
   zoom: number;

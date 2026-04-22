@@ -5,7 +5,7 @@ import { DrawingArea } from '@/components/Canvas/DrawingArea';
 import { CellEditor } from '@/components/CellEditor/CellEditor';
 import { HelpModal } from '@/components/HelpModal/HelpModal';
 import { ImageImportModal } from '@/components/ImageImportModal/ImageImportModal';
-import { Tool, BrailleGrid, BrailleCell } from '@/types/braille';
+import { Tool, BrailleGrid, BrailleCell, OverlayReferenceImage } from '@/types/braille';
 import { useSelection } from '@/hooks/useSelection';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useShapes, isShapeTool } from '@/hooks/useShapes';
@@ -70,6 +70,9 @@ export const BrailleEditor = () => {
   const [editingCell, setEditingCell] = useState<BrailleCell | null>(null);
   const [lastClickTime, setLastClickTime] = useState(0);
   const [showDebug, setShowDebug] = useState(false);
+  const [overlayImage, setOverlayImage] = useState<OverlayReferenceImage | null>(null);
+  const [overlayEnabled, setOverlayEnabled] = useState(false);
+  const [overlayOpacity, setOverlayOpacity] = useState(0.4);
   const { toast } = useToast();
 
   // Gerenciar histórico (undo/redo)
@@ -377,6 +380,9 @@ export const BrailleEditor = () => {
               zoom={zoom}
               selectedTool={selectedTool}
               showLetters={showLetters}
+              overlayImage={overlayImage}
+              overlayEnabled={overlayEnabled}
+              overlayOpacity={overlayOpacity}
               selection={selection}
               onZoomChange={setZoom}
               onResolutionChange={handleResolutionChange}
@@ -386,6 +392,8 @@ export const BrailleEditor = () => {
               onInsertText={handleInsertText}
               onSelectionChange={() => {}}
               shapes={shapes}
+              onOverlayEnabledChange={setOverlayEnabled}
+              onOverlayOpacityChange={setOverlayOpacity}
             />
           </main>
         </div>
@@ -396,9 +404,13 @@ export const BrailleEditor = () => {
           <ImageImportModal
             gridWidth={grid.width}
             gridHeight={grid.height}
-            onApply={(newGrid) => {
+            onApply={(newGrid, referenceImage) => {
               setGrid(newGrid);
               addToHistory(newGrid);
+              if (referenceImage.dataUrl) {
+                setOverlayImage(referenceImage);
+                setOverlayEnabled(true);
+              }
               setSelectedTool(toolBeforeImageImport);
             }}
             onClose={() => setSelectedTool(toolBeforeImageImport)}

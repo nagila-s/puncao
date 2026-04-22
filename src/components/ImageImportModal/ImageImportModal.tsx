@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { BrailleGrid } from '@/types/braille';
+import type { BrailleGrid, OverlayReferenceImage } from '@/types/braille';
 import {
   loadImageToImageData,
   toGrayscale,
@@ -40,7 +40,7 @@ const DEFAULT_PARAMS: ImageImportParams = {
 interface ImageImportModalProps {
   gridWidth: number;
   gridHeight: number;
-  onApply: (grid: BrailleGrid) => void;
+  onApply: (grid: BrailleGrid, referenceImage: OverlayReferenceImage) => void;
   onClose: () => void;
 }
 
@@ -76,6 +76,22 @@ export function ImageImportModal({
     const t = setTimeout(() => setDebouncedParams(params), 250);
     return () => clearTimeout(t);
   }, [params]);
+
+  const createReferenceImage = useCallback((data: ImageData): OverlayReferenceImage => {
+    const canvas = document.createElement('canvas');
+    canvas.width = data.width;
+    canvas.height = data.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return { dataUrl: '', width: data.width, height: data.height };
+    }
+    ctx.putImageData(data, 0, 0);
+    return {
+      dataUrl: canvas.toDataURL('image/png'),
+      width: data.width,
+      height: data.height,
+    };
+  }, []);
 
   const loadFile = useCallback(async (file: File) => {
     try {
@@ -126,9 +142,10 @@ export function ImageImportModal({
       CELL_HEIGHT,
       { dotRadius: params.dotRadius, thresholdDot: params.thresholdDot }
     );
-    onApply(JSON.parse(JSON.stringify(finalGrid)));
+    const referenceImage = createReferenceImage(imageData);
+    onApply(JSON.parse(JSON.stringify(finalGrid)), referenceImage);
     onClose();
-  }, [imageData, imageSize, params, gridWidth, gridHeight, onApply, onClose]);
+  }, [imageData, imageSize, params, gridWidth, gridHeight, onApply, onClose, createReferenceImage]);
 
   const handleCancel = useCallback(() => {
     onClose();

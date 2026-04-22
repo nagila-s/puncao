@@ -1,10 +1,11 @@
 import React, {
   useEffect,
   useRef,
+  useState,
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { BrailleGrid as BrailleGridType, BrailleCell, Tool } from "@/types/braille";
+import { BrailleGrid as BrailleGridType, BrailleCell, OverlayReferenceImage, Tool } from "@/types/braille";
 import { useDrawing } from "@/hooks/useDrawing";
 import { digitToLetter } from "@/lib/brailleMappings";
 import { SelectionState } from "@/hooks/useSelection";
@@ -23,6 +24,9 @@ export interface BrailleGridProps {
   showLetters: boolean;
   selection: SelectionState;
   selectedTool: Tool;
+  overlayImage?: OverlayReferenceImage | null;
+  overlayEnabled?: boolean;
+  overlayOpacity?: number;
   onGridChange?: (grid: BrailleGridType) => void;
   hasClipboard: boolean;
   onSelectionChange?: (selection: SelectionState) => void;
@@ -52,6 +56,9 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       showLetters,
       selection,
       selectedTool,
+      overlayImage,
+      overlayEnabled = false,
+      overlayOpacity = 0.4,
       onGridChange,
       hasClipboard,
       onSelectionChange,
@@ -60,6 +67,7 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
     ref
   ) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [overlayElement, setOverlayElement] = useState<HTMLImageElement | null>(null);
 
     const { isDrawing, startDrawing, continueDrawing, finishDrawing, cancelDrawing } =
       useDrawing(grid, onGridChange || (() => {}));
@@ -94,6 +102,17 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
 
 
     useEffect(() => {
+      if (!overlayImage?.dataUrl) {
+        setOverlayElement(null);
+        return;
+      }
+
+      const image = new Image();
+      image.onload = () => setOverlayElement(image);
+      image.src = overlayImage.dataUrl;
+    }, [overlayImage?.dataUrl]);
+
+    useEffect(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -112,6 +131,13 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       drawGrid(ctx, grid, scaledCellW, scaledCellH, zoom);
+
+      if (overlayEnabled && overlayElement) {
+        ctx.save();
+        ctx.globalAlpha = overlayOpacity;
+        ctx.drawImage(overlayElement, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      }
 
       for (let y = 0; y < grid.height; y++) {
         for (let x = 0; x < grid.width; x++) {
@@ -164,7 +190,17 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
           ctx.setLineDash([]);
         }
       }
-    }, [grid, zoom, showLetters, shapes?.isPlacingShape, shapes?.previewDotsMap, shapes?.boundingBox]);
+    }, [
+      grid,
+      zoom,
+      showLetters,
+      overlayEnabled,
+      overlayOpacity,
+      overlayElement,
+      shapes?.isPlacingShape,
+      shapes?.previewDotsMap,
+      shapes?.boundingBox,
+    ]);
 
     const drawGrid = (
       ctx: CanvasRenderingContext2D,

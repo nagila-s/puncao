@@ -5,7 +5,7 @@ import { BrailleGrid } from './BrailleGrid';
 import { ZoomControls } from '../Controls/ZoomControls';
 import { ResolutionControls } from '../Controls/ResolutionControls';
 import { CopyLetters } from '../Controls/CopyLetters';
-import { BrailleGrid as BrailleGridType, Tool } from '@/types/braille';
+import { BrailleGrid as BrailleGridType, OverlayReferenceImage, Tool } from '@/types/braille';
 import { SelectionState } from '@/hooks/useSelection';
 import { ShapePlacingState } from '@/hooks/useShapes';
 import { CELL_WIDTH, CELL_HEIGHT } from '@/lib/constants';
@@ -15,6 +15,9 @@ interface DrawingAreaProps {
   zoom: number;
   selectedTool: Tool;
   showLetters?: boolean;
+  overlayImage?: OverlayReferenceImage | null;
+  overlayEnabled?: boolean;
+  overlayOpacity?: number;
   selection: SelectionState;
   hasClipboard?: boolean;
   onZoomChange: (zoom: number) => void;
@@ -24,6 +27,8 @@ interface DrawingAreaProps {
   onToggleLetters?: () => void;
   onInsertText?: (cellX: number, cellY: number, text: string) => void;
   onSelectionChange?: (selection: SelectionState) => void;
+  onOverlayEnabledChange?: (enabled: boolean) => void;
+  onOverlayOpacityChange?: (opacity: number) => void;
   /** Estado do sistema de formas geométricas */
   shapes?: ShapePlacingState;
 }
@@ -42,6 +47,9 @@ export const DrawingArea = ({
   zoom,
   selectedTool,
   showLetters: propShowLetters,
+  overlayImage = null,
+  overlayEnabled = false,
+  overlayOpacity = 0.4,
   selection,
   hasClipboard = false,
   onZoomChange,
@@ -51,6 +59,8 @@ export const DrawingArea = ({
   onToggleLetters,
   onInsertText,
   onSelectionChange,
+  onOverlayEnabledChange,
+  onOverlayOpacityChange,
   shapes
 }: DrawingAreaProps) => {
   const [showLetters, setShowLetters] = useState(propShowLetters || false);
@@ -170,6 +180,8 @@ export const DrawingArea = ({
     commitCurrentBox();
   };
 
+  const hasOverlayReference = Boolean(overlayImage?.dataUrl);
+
   return (
     <div className="flex-1 flex flex-col bg-background">
       <div className="border-b border-border p-3 bg-card">
@@ -181,6 +193,30 @@ export const DrawingArea = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {hasOverlayReference && (
+              <>
+                <button
+                  onClick={() => onOverlayEnabledChange?.(!overlayEnabled)}
+                  className="flex items-center gap-2 px-3 py-1 border border-border bg-background hover:bg-muted transition-colors text-sm"
+                  title={overlayEnabled ? 'Ocultar referência' : 'Mostrar referência'}
+                >
+                  {overlayEnabled ? 'Referência: ligada' : 'Referência: desligada'}
+                </button>
+                <label className="flex items-center gap-2 text-sm px-2">
+                  Transparência
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="0.9"
+                    step="0.05"
+                    value={overlayOpacity}
+                    disabled={!overlayEnabled}
+                    onChange={(e) => onOverlayOpacityChange?.(parseFloat(e.target.value))}
+                    className="w-24"
+                  />
+                </label>
+              </>
+            )}
             <button
               onClick={onToggleLetters || (() => setShowLetters(!showLetters))}
               className="flex items-center gap-2 px-3 py-1 border border-border bg-background hover:bg-muted transition-colors text-sm"
@@ -206,6 +242,9 @@ export const DrawingArea = ({
             showLetters={propShowLetters ?? showLetters}
             selection={selection}
             selectedTool={selectedTool}
+            overlayImage={overlayImage}
+            overlayEnabled={overlayEnabled}
+            overlayOpacity={overlayOpacity}
             onGridChange={onGridChange}
             hasClipboard={hasClipboard}
             onSelectionChange={onSelectionChange}
