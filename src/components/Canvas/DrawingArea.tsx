@@ -5,6 +5,7 @@ import { BrailleGrid } from './BrailleGrid';
 import { ZoomControls } from '../Controls/ZoomControls';
 import { ResolutionControls } from '../Controls/ResolutionControls';
 import { CopyLetters } from '../Controls/CopyLetters';
+import { Button } from '@/components/ui/button';
 import { BrailleGrid as BrailleGridType, OverlayReferenceImage, Tool } from '@/types/braille';
 import { SelectionState } from '@/hooks/useSelection';
 import { ShapePlacingState } from '@/hooks/useShapes';
@@ -31,6 +32,8 @@ interface DrawingAreaProps {
   onOverlayOpacityChange?: (opacity: number) => void;
   /** Estado do sistema de formas geométricas */
   shapes?: ShapePlacingState;
+  onCopyLetters: () => void;
+  onNewDrawing?: () => void;
 }
 
 
@@ -61,7 +64,9 @@ export const DrawingArea = ({
   onSelectionChange,
   onOverlayEnabledChange,
   onOverlayOpacityChange,
-  shapes
+  shapes,
+  onCopyLetters,
+  onNewDrawing,
 }: DrawingAreaProps) => {
   const [showLetters, setShowLetters] = useState(propShowLetters || false);
   const [textBox, setTextBox] = useState<TextBoxState | null>(null);
@@ -189,7 +194,12 @@ export const DrawingArea = ({
           <div className="flex items-center gap-4">
             <ZoomControls zoom={zoom} onZoomChange={onZoomChange} onZoomReset={handleZoomReset} />
             <ResolutionControls resolution={currentResolution} onResolutionChange={onResolutionChange} />
-            <CopyLetters grid={grid} />
+            <CopyLetters onCopy={onCopyLetters} />
+            {onNewDrawing && (
+              <Button type="button" size="sm" variant="outline" onClick={onNewDrawing}>
+                Novo desenho
+              </Button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">

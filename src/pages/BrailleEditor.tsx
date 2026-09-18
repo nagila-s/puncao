@@ -1,18 +1,22 @@
 // src/pages/BrailleEditor.tsx
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/Sidebar/AppSidebar';
 import { DrawingArea } from '@/components/Canvas/DrawingArea';
 import { CellEditor } from '@/components/CellEditor/CellEditor';
 import { HelpModal } from '@/components/HelpModal/HelpModal';
 import { ImageImportModal } from '@/components/ImageImportModal/ImageImportModal';
+import { AppHeader } from '@/components/layout/AppHeader';
 import { Tool, BrailleGrid, BrailleCell, OverlayReferenceImage } from '@/types/braille';
 import { useSelection } from '@/hooks/useSelection';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useShapes, isShapeTool } from '@/hooks/useShapes';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { writeTextToGrid } from '@/lib/textPlacement';
 import { gridToLetters } from '@/lib/encoding';
+import { fetchDrawingById, upsertDraftDrawing } from '@/lib/drawings';
 
 const createEmptyGrid = (characters: number, lines: number): BrailleGrid => {
   const cells: BrailleCell[][] = [];
@@ -73,6 +77,11 @@ export const BrailleEditor = () => {
   const [overlayImage, setOverlayImage] = useState<OverlayReferenceImage | null>(null);
   const [overlayEnabled, setOverlayEnabled] = useState(false);
   const [overlayOpacity, setOverlayOpacity] = useState(0.4);
+  const [currentDrawingId, setCurrentDrawingId] = useState<string | null>(null);
+  const loadedDrawingRef = useRef<string | null>(null);
+  const loadedOwnerRef = useRef<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
 
   // Gerenciar histórico (undo/redo)
@@ -254,25 +263,120 @@ export const BrailleEditor = () => {
     }
   }, [selection]);
 
-  // Copiar letras da grade (sempre em letras, nunca dígito; número na grade = "#" + letra)
+  // Copiar letras da grade e salvar como não publicado quando houver login
   const handleCopyLetters = useCallback(async () => {
+    let copied = false;
     try {
-      const textContent = gridToLetters(grid, '\n');
+      const textContent = gridToLetters(grid, '\r\n');
       await navigator.clipboard.writeText(textContent);
-      toast({
-        title: "Figura copiada",
-        description: "Conteúdo em letras copiado para a área de transferência",
-        duration: 2000,
-      });
+      copied = true;
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível copiar para a área de transferência",
-        variant: "destructive",
-        duration: 2000,
-      });
+      console.error('[CopyLetters] Erro ao copiar:', error);
     }
-  }, [grid, toast]);
+
+    if (!user) {
+      toast({
+        title: copied ? 'Figura copiada' : 'Erro',
+        description: copied
+          ? 'Entre para salvar em Meus desenhos.'
+          : 'Não foi possível copiar para a área de transferência. Entre para salvar o desenho.',
+        variant: copied ? 'default' : 'destructive',
+        duration: 2500,
+      });
+      return;
+    }
+
+    const { drawing, error } = await upsertDraftDrawing({
+      id: currentDrawingId,
+      ownerId: user.id,
+      authorName: profile?.display_name || user.email || '',
+      grid,
+    });
+
+    if (error || !drawing) {
+      toast({
+        title: copied ? 'Copiado, mas não salvo' : 'Não foi possível salvar',
+        description: error || 'Não foi possível gravar em Meus desenhos.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setCurrentDrawingId(drawing.id);
+    loadedDrawingRef.current = drawing.id;
+    loadedOwnerRef.current = drawing.owner_id;
+    if (searchParams.get('d') !== drawing.id) {
+      setSearchParams({ d: drawing.id }, { replace: true });
+    }
+
+    toast({
+      title: copied ? 'Copiado e salvo' : 'Salvo em Meus desenhos',
+      description: copied
+        ? 'O desenho está em Meus desenhos como não publicado.'
+        : 'A cópia para a área de transferência falhou, mas o desenho foi salvo como não publicado.',
+      duration: 2200,
+    });
+  }, [grid, toast, user, profile, currentDrawingId, searchParams, setSearchParams]);
+
+  const handleNewDrawing = useCallback(() => {
+    const empty = createEmptyGrid(34, 28);
+    setGrid(empty);
+    setHistory([JSON.parse(JSON.stringify(empty))]);
+    setHistoryIndex(0);
+    setCurrentDrawingId(null);
+    loadedDrawingRef.current = null;
+    loadedOwnerRef.current = null;
+    setOverlayImage(null);
+    setOverlayEnabled(false);
+    setSearchParams({}, { replace: true });
+  }, [setSearchParams]);
+
+  useEffect(() => {
+    const drawingId = searchParams.get('d');
+    if (!drawingId) {
+      return;
+    }
+
+    const applyOwnership = (ownerId: string, id: string) => {
+      if (user && ownerId === user.id) {
+        setCurrentDrawingId(id);
+      } else {
+        setCurrentDrawingId(null);
+      }
+    };
+
+    if (loadedDrawingRef.current === drawingId && loadedOwnerRef.current) {
+      applyOwnership(loadedOwnerRef.current, drawingId);
+      return;
+    }
+
+    let cancelled = false;
+    loadedDrawingRef.current = drawingId;
+
+    void fetchDrawingById(drawingId).then((drawing) => {
+      if (cancelled) return;
+      if (!drawing) {
+        if (user) {
+          toast({
+            title: 'Desenho não encontrado',
+            description: 'Ele pode ser privado ou ainda não publicado.',
+            variant: 'destructive',
+          });
+        }
+        return;
+      }
+
+      loadedOwnerRef.current = drawing.owner_id;
+      setGrid(drawing.grid);
+      setHistory([JSON.parse(JSON.stringify(drawing.grid))]);
+      setHistoryIndex(0);
+      applyOwnership(drawing.owner_id, drawing.id);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, user, toast]);
 
   // ── Teclado para formas: Enter confirma, Esc cancela ──
   // Registado ANTES do useKeyboardShortcuts para ter prioridade na fase capture.
@@ -351,11 +455,7 @@ export const BrailleEditor = () => {
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen w-full flex flex-col bg-background">
-        {/* Header */}
-        <div className="h-12 bg-[#F0C930] border-b flex items-center px-4 flex-shrink-0">
-          <img src="/favicon.png" alt="Logo Punção" className="h-7 w-auto mr-2" />
-          <h1 className="titulo-principal text-foreground">Punção</h1>
-        </div>
+        <AppHeader />
 
         {/* Layout principal */}
         <div className="flex w-full flex-1 min-h-0">
@@ -394,6 +494,8 @@ export const BrailleEditor = () => {
               shapes={shapes}
               onOverlayEnabledChange={setOverlayEnabled}
               onOverlayOpacityChange={setOverlayOpacity}
+              onCopyLetters={handleCopyLetters}
+              onNewDrawing={handleNewDrawing}
             />
           </main>
         </div>
