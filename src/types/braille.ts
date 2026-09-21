@@ -27,6 +27,8 @@ export interface DrawingState {
   showLetters: boolean; // toggle entre pontos e letras
 }
 
+export type EraserUnit = 'dots' | 'cells';
+
 export type Tool = 
   | 'select'
   | 'pencil'

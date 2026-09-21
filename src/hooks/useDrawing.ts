@@ -1,128 +1,111 @@
 import { useState, useCallback } from 'react';
-import { BrailleGrid, BrailleCell } from '@/types/braille';
-import { findBestMatchingLetter, letterToBraillePatternFunc } from '@/lib/brailleMappings';
-import { CELL_WIDTH, CELL_HEIGHT } from '@/lib/constants';
+import { BrailleGrid, EraserUnit } from '@/types/braille';
+import { findBestMatchingLetter } from '@/lib/brailleMappings';
+import {
+  clampEraserSize,
+  getCellBlock,
+  getCellUnderCursor,
+  getDotsInEraserBrush,
+  getNearestDot,
+} from '@/lib/eraserBrush';
 
-// Posições dos pontos braille na célula (em percentual)
-const BRAILLE_DOT_POSITIONS = [
-  { x: 0.3, y: 0.2, dot: 1 }, // ponto 1
-  { x: 0.3, y: 0.5, dot: 2 }, // ponto 2  
-  { x: 0.3, y: 0.8, dot: 3 }, // ponto 3
-  { x: 0.7, y: 0.2, dot: 4 }, // ponto 4
-  { x: 0.7, y: 0.5, dot: 5 }, // ponto 5
-  { x: 0.7, y: 0.8, dot: 6 }, // ponto 6
-];
+export interface DrawingOptions {
+  eraserUnit?: EraserUnit;
+  eraserSize?: number;
+}
 
-export const useDrawing = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid) => void) => {
+export const useDrawing = (
+  grid: BrailleGrid,
+  onGridChange: (grid: BrailleGrid) => void,
+  options: DrawingOptions = {}
+) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPaintedPoint, setLastPaintedPoint] = useState<{cellX: number, cellY: number, dotIndex: number} | null>(null);
 
-  // Determina qual ponto braille está sendo tocado pelo mouse
-  const getBrailleDotAtPosition = (x: number, y: number): { cellX: number; cellY: number; dotIndex: number } | null => {
-    const cellX = Math.floor(x / CELL_WIDTH);
-    const cellY = Math.floor(y / CELL_HEIGHT);
-    
-    if (cellX < 0 || cellX >= grid.width || cellY < 0 || cellY >= grid.height) {
-      return null;
-    }
-
-    // Coordenadas relativas dentro da célula
-    const relativeX = (x - cellX * CELL_WIDTH) / CELL_WIDTH;
-    const relativeY = (y - cellY * CELL_HEIGHT) / CELL_HEIGHT;
-
-    // Encontra o ponto braille mais próximo
-    let closestDot: { cellX: number; cellY: number; dotIndex: number } | null = null;
-    let closestDistance = Infinity;
-    const PROXIMITY_THRESHOLD = 0.25; // Raio de proximidade para ativar um ponto
-
-    BRAILLE_DOT_POSITIONS.forEach((pos, index) => {
-      const distance = Math.sqrt(
-        Math.pow(relativeX - pos.x, 2) + Math.pow(relativeY - pos.y, 2)
-      );
-      
-      if (distance < closestDistance && distance < PROXIMITY_THRESHOLD) {
-        closestDistance = distance;
-        closestDot = { cellX, cellY, dotIndex: index + 1 }; // pontos braille são 1-indexados
-      }
-    });
-
-    return closestDot;
-  };
-
-  // Pinta um ponto específico (apenas ativa, nunca desativa)
   const paintDot = useCallback((cellX: number, cellY: number, dotIndex: number) => {
     const newGrid = JSON.parse(JSON.stringify(grid));
     const cell = newGrid.cells[cellY][cellX];
     
-    // Apenas adiciona o ponto, nunca remove
     const currentDots = new Set(cell.dots || []);
     currentDots.add(dotIndex);
     
     const newDots = Array.from(currentDots).sort() as number[];
     cell.dots = newDots;
-    
-    // Atualiza a letra correspondente
-    const suggestedLetter = findBestMatchingLetter(newDots);
-    cell.letter = suggestedLetter;
+    cell.letter = findBestMatchingLetter(newDots);
     
     onGridChange(newGrid);
   }, [grid, onGridChange]);
 
-  // Remove um ponto específico (para borracha)
-  const eraseDot = useCallback((cellX: number, cellY: number, dotIndex: number) => {
-    const newGrid = JSON.parse(JSON.stringify(grid));
-    const cell = newGrid.cells[cellY][cellX];
-    
-    // Remove o ponto
-    const currentDots = new Set(cell.dots || []);
-    currentDots.delete(dotIndex);
-    
-    const newDots = Array.from(currentDots).sort() as number[];
-    cell.dots = newDots;
-    
-    // Atualiza a letra correspondente
-    const suggestedLetter = findBestMatchingLetter(newDots);
-    cell.letter = suggestedLetter;
-    
-    onGridChange(newGrid);
-  }, [grid, onGridChange]);
+  const applyEraser = useCallback((x: number, y: number) => {
+    const unit = options.eraserUnit ?? 'dots';
+    const size = clampEraserSize(options.eraserSize ?? 1);
+    const newGrid: BrailleGrid = JSON.parse(JSON.stringify(grid));
+    let changed = false;
+
+    if (unit === 'cells') {
+      const cell = getCellUnderCursor(x, y, grid);
+      if (!cell) return;
+
+      for (const target of getCellBlock(cell.cellX, cell.cellY, size, grid)) {
+        const current = newGrid.cells[target.y][target.x];
+        if (current.dots.length === 0 && (!current.letter || current.letter === ' ')) continue;
+        current.dots = [];
+        current.letter = ' ';
+        current.origin = 'manual';
+        changed = true;
+      }
+    } else {
+      const targets = getDotsInEraserBrush(x, y, size, grid);
+      for (const target of targets) {
+        const current = newGrid.cells[target.cellY][target.cellX];
+        if (!current.dots.includes(target.dotIndex)) continue;
+        current.dots = current.dots.filter((dot) => dot !== target.dotIndex);
+        current.letter = findBestMatchingLetter(current.dots);
+        current.origin = 'manual';
+        changed = true;
+      }
+    }
+
+    if (changed) onGridChange(newGrid);
+  }, [grid, onGridChange, options.eraserSize, options.eraserUnit]);
 
   const startDrawing = useCallback((x: number, y: number, tool: string = 'pencil') => {
     setIsDrawing(true);
-    const dotPosition = getBrailleDotAtPosition(x, y);
-    
+
+    if (tool === 'eraser') {
+      applyEraser(x, y);
+      return;
+    }
+
+    const dotPosition = getNearestDot(x, y, grid);
     if (dotPosition) {
-      if (tool === 'eraser') {
-        eraseDot(dotPosition.cellX, dotPosition.cellY, dotPosition.dotIndex);
-      } else {
-        paintDot(dotPosition.cellX, dotPosition.cellY, dotPosition.dotIndex);
-      }
+      paintDot(dotPosition.cellX, dotPosition.cellY, dotPosition.dotIndex);
       setLastPaintedPoint(dotPosition);
     }
-  }, [paintDot, eraseDot]);
+  }, [applyEraser, paintDot, grid]);
 
   const continueDrawing = useCallback((x: number, y: number, tool: string = 'pencil') => {
     if (!isDrawing) return;
+
+    if (tool === 'eraser') {
+      applyEraser(x, y);
+      return;
+    }
     
-    const dotPosition = getBrailleDotAtPosition(x, y);
+    const dotPosition = getNearestDot(x, y, grid);
     
     if (dotPosition) {
-      // Só pinta se for um ponto diferente do último pintado
       const isNewPoint = !lastPaintedPoint || 
         lastPaintedPoint.cellX !== dotPosition.cellX ||
         lastPaintedPoint.cellY !== dotPosition.cellY ||
         lastPaintedPoint.dotIndex !== dotPosition.dotIndex;
         
       if (isNewPoint) {
-        if (tool === 'eraser') {
-          eraseDot(dotPosition.cellX, dotPosition.cellY, dotPosition.dotIndex);
-        } else {
-          paintDot(dotPosition.cellX, dotPosition.cellY, dotPosition.dotIndex);
-        }
+        paintDot(dotPosition.cellX, dotPosition.cellY, dotPosition.dotIndex);
         setLastPaintedPoint(dotPosition);
       }
     }
-  }, [isDrawing, lastPaintedPoint, paintDot, eraseDot]);
+  }, [isDrawing, lastPaintedPoint, paintDot, applyEraser, grid]);
 
   const finishDrawing = useCallback(() => {
     setIsDrawing(false);

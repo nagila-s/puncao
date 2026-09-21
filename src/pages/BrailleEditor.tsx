@@ -7,7 +7,8 @@ import { CellEditor } from '@/components/CellEditor/CellEditor';
 import { HelpModal } from '@/components/HelpModal/HelpModal';
 import { ImageImportModal } from '@/components/ImageImportModal/ImageImportModal';
 import { AppHeader } from '@/components/layout/AppHeader';
-import { Tool, BrailleGrid, BrailleCell, OverlayReferenceImage } from '@/types/braille';
+import { Tool, BrailleGrid, BrailleCell, OverlayReferenceImage, EraserUnit } from '@/types/braille';
+import { clampEraserSize } from '@/lib/eraserBrush';
 import { useSelection } from '@/hooks/useSelection';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useShapes, isShapeTool } from '@/hooks/useShapes';
@@ -64,6 +65,8 @@ const resizeGridKeepingContent = (
 
 export const BrailleEditor = () => {
   const [selectedTool, setSelectedTool] = useState<Tool>('pencil');
+  const [eraserUnit, setEraserUnit] = useState<EraserUnit>('dots');
+  const [eraserSize, setEraserSize] = useState(1);
   const [toolBeforeImageImport, setToolBeforeImageImport] = useState<Tool>('pencil');
   const [zoom, setZoom] = useState(1);
   const [grid, setGrid] = useState<BrailleGrid>(() => createEmptyGrid(34, 28)); // 34 caracteres, 28 linhas
@@ -123,8 +126,8 @@ export const BrailleEditor = () => {
   }, [showHelp]);
 
   const handleToggleView = useCallback(() => {
-    setShowLetters(!showLetters);
-  }, [showLetters]);
+    setShowLetters((current) => !current);
+  }, []);
 
   const handleCellDoubleClick = useCallback((x: number, y: number) => {
     const cell = grid.cells[y][x];
@@ -142,8 +145,12 @@ export const BrailleEditor = () => {
     if (tool === 'image_import') {
       setToolBeforeImageImport(selectedTool);
     }
+    if (selection.hasSelection && (tool === 'fill' || tool === 'eraser')) {
+      if (tool === 'fill') selection.fillSelectedCells();
+      else selection.deleteSelectedCells();
+    }
     setSelectedTool(tool);
-  }, [selection.isSelecting, selectedTool]);
+  }, [selection, selectedTool]);
 
 
   // >>> Inserção de texto vinda da caixa inline no DrawingArea
@@ -153,7 +160,7 @@ export const BrailleEditor = () => {
     addToHistory(newGrid);
   }, [grid, addToHistory]);
 
-  // Clique em célula (usado para select/eraser/fill; MODO TEXTO é tratado no DrawingArea)
+  // Clique em célula (usado para select/fill; MODO TEXTO é tratado no DrawingArea)
   const handleCellClick = useCallback((x: number, y: number, event?: React.MouseEvent) => {
     // No modo "text" quem controla é o DrawingArea (caixa inline).
     if (selectedTool === 'text') return;
@@ -188,16 +195,11 @@ export const BrailleEditor = () => {
         });
         return newGrid;
       });
-    } else if (selectedTool === 'eraser') {
-      setGrid(prevGrid => {
-        const newGrid = JSON.parse(JSON.stringify(prevGrid));
-        const cell = newGrid.cells[y][x];
-        cell.dots = [];
-        cell.letter = ' ';
-        cell.origin = 'manual';
-        return newGrid;
-      });
     } else if (selectedTool === 'fill') {
+      if (selection.hasSelection) {
+        selection.fillSelectedCells();
+        return;
+      }
       const newGrid = JSON.parse(JSON.stringify(grid));
       shapes.floodFill(newGrid, x, y);
       handleGridChange(newGrid);
@@ -310,11 +312,15 @@ export const BrailleEditor = () => {
     }
 
     toast({
-      title: copied ? 'Copiado e salvo' : 'Salvo em Meus desenhos',
+      title: copied ? 'Desenho copiado para a área de transferência' : 'Salvo em Meus desenhos',
       description: copied
-        ? 'O desenho está em Meus desenhos como não publicado.'
+        ? (
+          <>
+            Agora você também pode encontrar este desenho em <strong>Meus desenhos</strong>.
+          </>
+        )
         : 'A cópia para a área de transferência falhou, mas o desenho foi salvo como não publicado.',
-      duration: 2200,
+      duration: 4000,
     });
   }, [grid, toast, user, profile, currentDrawingId, searchParams, setSearchParams]);
 
@@ -472,6 +478,10 @@ export const BrailleEditor = () => {
             canRedo={historyIndex < history.length - 1}
             hasSelection={selection.hasSelection}
             hasClipboard={selection.hasClipboard}
+            eraserUnit={eraserUnit}
+            eraserSize={eraserSize}
+            onEraserUnitChange={setEraserUnit}
+            onEraserSizeChange={(size) => setEraserSize(clampEraserSize(size))}
           />
 
           <main className="flex-1">
@@ -496,6 +506,8 @@ export const BrailleEditor = () => {
               onOverlayOpacityChange={setOverlayOpacity}
               onCopyLetters={handleCopyLetters}
               onNewDrawing={handleNewDrawing}
+              eraserUnit={eraserUnit}
+              eraserSize={eraserSize}
             />
           </main>
         </div>

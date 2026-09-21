@@ -37,23 +37,41 @@ export const useKeyboardShortcuts = ({
 }: KeyboardShortcutsProps) => {
   
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    // Ignorar se o usuário está digitando em um input
+    // Ignorar se o usuário está digitando em um campo de texto
     const target = event.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
-      // Only block shortcuts if the user is actually typing (not just focused)
-      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-      const isEditing = target.contentEditable === 'true' && target === document.activeElement;
-      
-      if (isTyping || isEditing) {
-        return;
-      }
+    const inputType = target instanceof HTMLInputElement ? target.type : '';
+    const isTextInput =
+      target.tagName === 'TEXTAREA' ||
+      target.isContentEditable ||
+      (target.tagName === 'INPUT' &&
+        ['', 'text', 'search', 'email', 'password', 'url', 'tel', 'number'].includes(inputType));
+
+    if (isTextInput) {
+      return;
     }
 
-    const { ctrlKey, metaKey, shiftKey, key } = event;
+    const { ctrlKey, metaKey, shiftKey, altKey, key, code } = event;
     const isModifierPressed = ctrlKey || metaKey;
 
     // Atalhos com Ctrl/Cmd
     if (isModifierPressed) {
+      // Ctrl + ` — no ABNT a tecla física (à esquerda do 1) gera ' ou Dead, não `
+      const isToggleLetters =
+        !altKey &&
+        (code === 'Backquote' ||
+          key === '`' ||
+          key === '~' ||
+          key === '´' ||
+          (key === 'Dead' &&
+            (code === 'Backquote' || code === 'BracketLeft' || code === 'Quote' || code === 'Equal')));
+
+      if (isToggleLetters) {
+        event.preventDefault();
+        event.stopPropagation();
+        onToggleView();
+        return;
+      }
+
       switch (key.toLowerCase()) {
         case 'z':
           event.preventDefault();
@@ -99,12 +117,6 @@ export const useKeyboardShortcuts = ({
           if (hasSelection) {
             onCut();
           }
-          break;
-        
-        case '`':
-          event.preventDefault();
-          event.stopPropagation();
-          onToggleView();
           break;
       }
     } else {

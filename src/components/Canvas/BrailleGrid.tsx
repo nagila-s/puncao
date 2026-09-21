@@ -5,13 +5,14 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { BrailleGrid as BrailleGridType, BrailleCell, OverlayReferenceImage, Tool } from "@/types/braille";
+import { BrailleGrid as BrailleGridType, BrailleCell, EraserUnit, OverlayReferenceImage, Tool } from "@/types/braille";
 import { useDrawing } from "@/hooks/useDrawing";
 import { digitToLetter } from "@/lib/brailleMappings";
 import { SelectionState } from "@/hooks/useSelection";
 import { ShapePlacingState, isShapeTool } from "@/hooks/useShapes";
 import { CELL_WIDTH, CELL_HEIGHT } from "@/lib/constants";
 import { DOT_POSITIONS } from "@/lib/shapeRasterizer";
+import { getCellBlockBounds, getCellUnderCursor, getDotRadiusPx } from "@/lib/eraserBrush";
 
 export interface BrailleGridProps {
   grid: BrailleGridType;
@@ -32,6 +33,8 @@ export interface BrailleGridProps {
   onSelectionChange?: (selection: SelectionState) => void;
   /** Estado do sistema de formas geométricas (preview + handlers) */
   shapes?: ShapePlacingState;
+  eraserUnit?: EraserUnit;
+  eraserSize?: number;
 }
 
 const DOT_RADIUS = 2;
@@ -63,14 +66,21 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       hasClipboard,
       onSelectionChange,
       shapes,
+      eraserUnit = "dots",
+      eraserSize = 1,
     },
     ref
   ) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [overlayElement, setOverlayElement] = useState<HTMLImageElement | null>(null);
+    const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
 
     const { isDrawing, startDrawing, continueDrawing, finishDrawing, cancelDrawing } =
-      useDrawing(grid, onGridChange || (() => {}));
+      useDrawing(grid, onGridChange || (() => {}), { eraserUnit, eraserSize });
+
+    useEffect(() => {
+      if (selectedTool !== "eraser") setHoverPos(null);
+    }, [selectedTool]);
 
     useImperativeHandle(
       ref,
@@ -92,10 +102,15 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       onSelectionChange?.(selection);
     }, [selection]);
 
-    // Limpa seleção ao mudar de ferramenta
+    // Mantém a seleção ao ir para preenchimento ou borracha, para aplicar na área
     useEffect(() => {
-      // Se mudou para uma ferramenta que não é select e há seleção ativa, limpar
-      if (selectedTool !== "select" && selection?.hasSelection && selection.clearSelection) {
+      if (
+        selectedTool !== "select" &&
+        selectedTool !== "fill" &&
+        selectedTool !== "eraser" &&
+        selection?.hasSelection &&
+        selection.clearSelection
+      ) {
         selection.clearSelection();
       }
     }, [selectedTool, selection?.hasSelection, selection?.clearSelection]);
@@ -190,6 +205,38 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
           ctx.setLineDash([]);
         }
       }
+
+      if (selectedTool === "eraser" && hoverPos) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.45)";
+        ctx.lineWidth = 1 * zoom;
+        ctx.setLineDash([3 * zoom, 3 * zoom]);
+
+        if (eraserUnit === "cells") {
+          const cell = getCellUnderCursor(hoverPos.x, hoverPos.y, grid);
+          if (cell) {
+            const bounds = getCellBlockBounds(cell.cellX, cell.cellY, eraserSize);
+            ctx.strokeRect(
+              bounds.x * scaledCellW,
+              bounds.y * scaledCellH,
+              bounds.width * scaledCellW,
+              bounds.height * scaledCellH
+            );
+          }
+        } else {
+          ctx.beginPath();
+          ctx.arc(
+            hoverPos.x * zoom,
+            hoverPos.y * zoom,
+            getDotRadiusPx(eraserSize) * zoom,
+            0,
+            Math.PI * 2
+          );
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
     }, [
       grid,
       zoom,
@@ -200,6 +247,10 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       shapes?.isPlacingShape,
       shapes?.previewDotsMap,
       shapes?.boundingBox,
+      selectedTool,
+      hoverPos,
+      eraserUnit,
+      eraserSize,
     ]);
 
     const drawGrid = (
@@ -381,16 +432,24 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
         return;
       }
 
-      // Limpa seleção ao usar ferramentas que não são select
+      // Preencher ou apagar a área selecionada
+      if (selection?.hasSelection && (selectedTool === "fill" || selectedTool === "eraser")) {
+        if (selectedTool === "fill") selection.fillSelectedCells();
+        else selection.deleteSelectedCells();
+        e.stopPropagation();
+        return;
+      }
+
+      // Limpa seleção ao usar ferramentas que não são select, fill ou eraser
       if (selection?.hasSelection && selection.clearSelection) {
         selection.clearSelection();
-        // Forçar re-render para garantir que a seleção visual suma
         setTimeout(() => {
           onSelectionChange?.(selection);
         }, 0);
       }
 
       if (selectedTool === "pencil" || selectedTool === "eraser") {
+        if (selectedTool === "eraser") setHoverPos(pos);
         startDrawing(pos.x, pos.y, selectedTool);
         e.stopPropagation();
       } else if (isShapeTool(selectedTool)) {
@@ -412,9 +471,14 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
     };
 
     const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const pos = getMousePosition(e);
+
+      if (selectedTool === "eraser") {
+        setHoverPos(pos);
+      }
+
       // Atualiza posição do drag durante mouse move
       if (selectedTool === "select" && selection?.isDragging) {
-        const pos = getMousePosition(e);
         if (selection.updateDrag) {
           selection.updateDrag(pos.x, pos.y);
         }
@@ -423,11 +487,9 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
       }
       
       if ((selectedTool === "pencil" || selectedTool === "eraser") && isDrawing) {
-        const pos = getMousePosition(e);
         continueDrawing(pos.x, pos.y, selectedTool);
         e.stopPropagation();
       } else if (isShapeTool(selectedTool) && shapes?.isPlacingShape) {
-        const pos = getMousePosition(e);
         shapes.handleShapeMouseMove(pos.x, pos.y);
         e.stopPropagation();
       } else if (selectedTool === "select") {
@@ -475,6 +537,8 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
     };
 
     const handleMouseLeave = (e: React.MouseEvent<HTMLCanvasElement>) => {
+      setHoverPos(null);
+
       if ((selectedTool === "pencil" || selectedTool === "eraser") && isDrawing) {
         cancelDrawing();
       }
@@ -508,7 +572,7 @@ export const BrailleGrid = forwardRef<BrailleGridRef, BrailleGridProps>(
           style={{
             imageRendering: "pixelated",
             cursor: (() => {
-              if (selectedTool === "pencil") return "crosshair";
+              if (selectedTool === "pencil" || selectedTool === "eraser") return "crosshair";
               if (isShapeTool(selectedTool)) return "crosshair";
               if (selectedTool === "select") {
                 if (selection?.isDragging) return "grabbing";

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { BrailleGrid, BrailleCell } from '@/types/braille';
+import { findBestMatchingLetter } from '@/lib/brailleMappings';
 
 export interface SelectionArea {
   startX: number;
@@ -29,6 +30,7 @@ export interface SelectionState {
   cutSelectedCells: () => void;
   pasteClipboard: (targetX: number, targetY: number) => void;
   deleteSelectedCells: () => void;
+  fillSelectedCells: () => void;
   hasClipboard: boolean;
   hasSelection: boolean;
   isDragging: boolean;
@@ -480,6 +482,29 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
     clearSelection();
   }, [selectedCells, grid, onGridChange, clearSelection]);
 
+  const fillSelectedCells = useCallback(() => {
+    const fillPattern = [1, 2, 3, 4, 5, 6];
+    const letter = findBestMatchingLetter(fillPattern);
+    const newGrid = JSON.parse(JSON.stringify(grid));
+    selectedCells.forEach(cellKey => {
+      const [x, y] = cellKey.split(',').map(Number);
+      if (x >= 0 && x < grid.width && y >= 0 && y < grid.height) {
+        newGrid.cells[y][x] = {
+          ...newGrid.cells[y][x],
+          x,
+          y,
+          dots: [...fillPattern],
+          letter,
+          origin: 'manual',
+          isActive: false
+        };
+      }
+    });
+
+    onGridChange(newGrid);
+    clearSelection();
+  }, [selectedCells, grid, onGridChange, clearSelection]);
+
   return {
     selectedCells,
     clipboard,
@@ -495,6 +520,7 @@ export const useSelection = (grid: BrailleGrid, onGridChange: (grid: BrailleGrid
     cutSelectedCells,
     pasteClipboard,
     deleteSelectedCells,
+    fillSelectedCells,
     hasClipboard: clipboard !== null,
     hasSelection: selectedCells.size > 0,
     isDragging,

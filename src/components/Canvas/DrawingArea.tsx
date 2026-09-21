@@ -6,7 +6,7 @@ import { ZoomControls } from '../Controls/ZoomControls';
 import { ResolutionControls } from '../Controls/ResolutionControls';
 import { CopyLetters } from '../Controls/CopyLetters';
 import { Button } from '@/components/ui/button';
-import { BrailleGrid as BrailleGridType, OverlayReferenceImage, Tool } from '@/types/braille';
+import { BrailleGrid as BrailleGridType, EraserUnit, OverlayReferenceImage, Tool } from '@/types/braille';
 import { SelectionState } from '@/hooks/useSelection';
 import { ShapePlacingState } from '@/hooks/useShapes';
 import { CELL_WIDTH, CELL_HEIGHT } from '@/lib/constants';
@@ -34,6 +34,8 @@ interface DrawingAreaProps {
   shapes?: ShapePlacingState;
   onCopyLetters: () => void;
   onNewDrawing?: () => void;
+  eraserUnit?: EraserUnit;
+  eraserSize?: number;
 }
 
 
@@ -67,6 +69,8 @@ export const DrawingArea = ({
   shapes,
   onCopyLetters,
   onNewDrawing,
+  eraserUnit = 'dots',
+  eraserSize = 1,
 }: DrawingAreaProps) => {
   const [showLetters, setShowLetters] = useState(propShowLetters || false);
   const [textBox, setTextBox] = useState<TextBoxState | null>(null);
@@ -230,7 +234,7 @@ export const DrawingArea = ({
             <button
               onClick={onToggleLetters || (() => setShowLetters(!showLetters))}
               className="flex items-center gap-2 px-3 py-1 border border-border bg-background hover:bg-muted transition-colors text-sm"
-              title={(propShowLetters ?? showLetters) ? 'Mostrar pontos' : 'Mostrar letras'}
+              title={`${(propShowLetters ?? showLetters) ? 'Mostrar pontos' : 'Mostrar letras'} (Ctrl + \`)`}
             >
               {(propShowLetters ?? showLetters) ? <EyeOff size={16} /> : <Eye size={16} />}
               {(propShowLetters ?? showLetters) ? 'Pontos' : 'Letras'}
@@ -240,6 +244,13 @@ export const DrawingArea = ({
       </div>
 
       <div className="flex-1 overflow-auto p-4 bg-drawing-area">
+        {shapes?.isPlacingShape && (
+          <div className="sticky top-0 z-20 mb-3">
+            <p className="inline-block rounded-md border-2 border-black/20 bg-yellow-400 px-3 py-2 text-sm font-medium text-black shadow">
+              Pressione <kbd className="px-1.5 py-0.5 bg-white/80 border border-black/20 rounded text-xs font-mono">Enter</kbd> para aplicar a figura
+            </p>
+          </div>
+        )}
         <div className="inline-block relative">
           <BrailleGrid
             grid={grid}
@@ -259,6 +270,8 @@ export const DrawingArea = ({
             hasClipboard={hasClipboard}
             onSelectionChange={onSelectionChange}
             shapes={shapes}
+            eraserUnit={eraserUnit}
+            eraserSize={eraserSize}
           />
 
           {textBox && selectedTool === 'text' && (
@@ -305,6 +318,7 @@ export const DrawingArea = ({
               selectedTool === 'triangle' ? 'Triângulo' :
               selectedTool === 'line' ? 'Linha' :
               selectedTool === 'fill' ? 'Preenchimento' :
+              selectedTool === 'eraser' ? 'Borracha' :
               selectedTool
             }
             {shapes?.isPlacingShape && (

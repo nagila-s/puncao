@@ -43,6 +43,7 @@ export const HelpModal = ({ onClose }: HelpModalProps) => {
               <div>
                 <strong>Selecionar:</strong> Clique para selecionar uma célula ou arraste para selecionar uma área retangular.
                 Com uma seleção ativa, use o mouse ou as setas do teclado para a mover. Pressione Enter para editar a célula.
+                Também pode clicar em Preenchimento para preencher a área, ou em Borracha para apagá-la.
               </div>
               <div>
                 <strong>Texto:</strong> Clique numa célula para posicionar o cursor de texto e comece a digitar.
@@ -53,10 +54,14 @@ export const HelpModal = ({ onClose }: HelpModalProps) => {
                 Cada célula que o cursor toca recebe todos os 6 pontos.
               </div>
               <div>
-                <strong>Borracha:</strong> Clique e arraste para limpar os pontos das células.
+                <strong>Borracha:</strong> Clique e arraste para apagar. Com a ferramenta selecionada, escolha
+                Pontos ou Células no menu esquerdo e ajuste o tamanho de 1 a 5. Em Pontos, o tamanho 1 apaga
+                o ponto mais próximo; tamanhos maiores cobrem um raio. Em Células, o tamanho define um bloco N×N.
+                Se houver uma área selecionada, a borracha apaga todas as células dessa área.
               </div>
               <div>
                 <strong>Preenchimento:</strong> Clique numa célula para preencher toda a área contígua com a mesma cor (flood fill).
+                Se houver uma área selecionada, preenche todas as células dessa área.
               </div>
               <div>
                 <strong>Importar imagem:</strong> Ao importar, o ajuste foi simplificado para duas visualizações lado a lado:
@@ -133,7 +138,7 @@ export const HelpModal = ({ onClose }: HelpModalProps) => {
                 alternar entre a visualização de pontos Braille e as letras correspondentes.
               </div>
               <div>
-                <strong>Copiar como texto:</strong> Use <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-xs font-mono">Ctrl + Shift + C</kbd> para
+                <strong>Copiar letras:</strong> Use <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-xs font-mono">Ctrl + Shift + C</kbd> para
                 copiar a seleção como letras para a área de transferência, útil para colar em outros programas.
               </div>
               <div>
